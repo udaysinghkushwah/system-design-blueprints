@@ -30,6 +30,16 @@ Visual explanation of the bipartite graph match loop using candidate discovery, 
 
 ---
 
+### 2. ChatGPT System Design
+A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
+
+* **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt_sd/chatgpt_system_design.md)
+* **Architecture Diagram:**
+
+![ChatGPT System Architecture](./chat_gpt_sd/chatgpt_system_architecture.png)
+
+---
+
 ## Support
 
 If you find these system design blueprints helpful, support my work by buying me a coffee!
