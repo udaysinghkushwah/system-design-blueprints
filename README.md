@@ -71,9 +71,9 @@ Visual flow of document indexing, semantic nearest-neighbor vector search, conve
 
 ## Support
 
-If you find these system design blueprints helpful, support my work by buying me a coffee!
+If you find these system design blueprints helpful, support my work by buying me a chai!
 
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/uday)
+[![Buy Me A Chai](https://img.shields.io/badge/Buy%20Me%20a%20Chai-orange?style=for-the-badge&logo=coffee&logoColor=white)](https://www.buymeachai.in/toudaysinghkushwah)
 
 ---
 *Created on 2026-07-20*
