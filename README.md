@@ -50,8 +50,22 @@ A production-grade system design for a real-time, low-latency conversational AI 
 * **Qdrant (Vector DB):** Indexes chunked vector embeddings using HNSW graphs for Retrieval-Augmented Generation (RAG), returning matching context documents within 10ms.
 * **vLLM / Triton:** Handles dynamic batching, GPU tensor parallelism, and KV-cache management (PagedAttention) to optimize inference resource efficiency and throughput.
 
-#### ChatGPT Architecture Diagram
+#### ChatGPT Architecture Diagrams
+
+##### A. High-Level ChatGPT Architecture
+Overview of clients, gateway, Query Orchestrator, context engine, vector storage, and GPU cluster.
+
 ![ChatGPT System Architecture](./chat_gpt_sd/chatgpt_system_architecture.png)
+
+##### B. Low-Latency Token Streaming & GPU Inference Flow
+Visual flow of HTTP/2 SSE streaming connections, Triton/vLLM batch queuing, and PagedAttention block cache partitioning.
+
+![ChatGPT Token Streaming](./chat_gpt_sd/chatgpt_token_streaming.png)
+
+##### C. RAG & Context Window Memory Pipeline
+Visual flow of document indexing, semantic nearest-neighbor vector search, conversation context windows, and secondary LLM summarization.
+
+![ChatGPT RAG Context](./chat_gpt_sd/chatgpt_rag_context.png)
 
 ---
 

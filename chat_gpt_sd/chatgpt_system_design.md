@@ -95,6 +95,9 @@ graph TD
 ## 4. Key Workflows & Engineering Details
 
 ### A. Streaming Response Mechanism (SSE vs WebSockets)
+
+![ChatGPT Token Streaming & GPU Inference](./chatgpt_token_streaming.png)
+
 To display text character-by-character, we must push downstream tokens in real-time.
 
 * **Why Server-Sent Events (SSE)?**
@@ -111,6 +114,9 @@ To display text character-by-character, we must push downstream tokens in real-t
 ---
 
 ### B. Context Window & Memory Management
+
+![ChatGPT RAG & Context Window Memory](./chatgpt_rag_context.png)
+
 An LLM does not remember past queries natively. To maintain a conversational thread, the system must append previous messages to the input payload.
 
 1. **KV Caching:**
