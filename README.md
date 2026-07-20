@@ -24,17 +24,17 @@ A production-grade, end-to-end system design for a high-scale food delivery plat
 ##### A. High-Level System Architecture
 Overview of clients, gateway, microservices layer, message brokers, and databases.
 
-![Food Delivery System Architecture](./Food_delivery_sd/food_delivery_system_architecture.png)
+![Food Delivery System Architecture](./Food_delivery_sd/food_delivery_system_architecture_v2.png)
 
 ##### B. Real-Time Ingestion & Live Tracking Pipeline
 Visual flow of coordinates streamed from riders to Redis Geo (hot cache), Kafka, Cassandra (historical logs), and WebSocket push connections to tracking users.
 
-![Food Delivery Live Tracking](./Food_delivery_sd/food_delivery_live_tracking.png)
+![Food Delivery Live Tracking](./Food_delivery_sd/food_delivery_live_tracking_v2.png)
 
 ##### C. Rider Matching & Dispatch Engine
 Visual explanation of the bipartite graph match loop using candidate discovery, multi-criteria weight functions (ETA, Travel Distance, Rating), and Hungarian Algorithm solvers.
 
-![Food Delivery Rider Matching](./Food_delivery_sd/food_delivery_rider_matching.png)
+![Food Delivery Rider Matching](./Food_delivery_sd/food_delivery_rider_matching_v2.png)
 
 ---
 

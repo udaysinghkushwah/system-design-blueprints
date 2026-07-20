@@ -70,7 +70,7 @@ Let's establish a base model for traffic and storage calculations:
 
 The platform uses a microservices architecture to ensure loose coupling, fault isolation, and independent scalability.
 
-![Food Delivery System Architecture](./food_delivery_system_architecture.png)
+![Food Delivery System Architecture](./food_delivery_system_architecture_v2.png)
 
 ### System Architecture Flowchart
 ```mermaid
@@ -171,7 +171,7 @@ Orders progress through a strict state machine with concurrency protections.
 
 ### C. Live Location Tracking Architecture
 
-![Food Delivery Live Ingestion & Tracking Pipeline](./food_delivery_live_tracking.png)
+![Food Delivery Live Ingestion & Tracking Pipeline](./food_delivery_live_tracking_v2.png)
 
 * **Ingestion Pipeline:** 
   Riders stream coordinates via lightweight **MQTT** (preferred for low-bandwidth cellular connections) or **gRPC** (over HTTP/2) every 4 seconds.
@@ -274,7 +274,7 @@ Because the `orders`, `order_items`, and `payment_ledgers` tables grow exponenti
 
 Matching riders to orders is a dynamic optimization problem solved by the **Rider Dispatch Service**.
 
-![Food Delivery Rider Dispatch & Matching Engine](./food_delivery_rider_matching.png)
+![Food Delivery Rider Dispatch & Matching Engine](./food_delivery_rider_matching_v2.png)
 
 ### The Matching Core Loop
 Instead of greedily assigning the first available rider to an order (which leads to sub-optimal global dispatch times), the Dispatch Service uses **Batch Matching** (runs every 10–15 seconds in a discrete time window).
