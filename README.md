@@ -2,6 +2,16 @@
 
 This repository contains professional system design blueprints and documentation.
 
+## 🗺️ Table of Contents
+
+* [🍔 Food Delivery System Design](#1-food-delivery-system-design)
+  * [🛠️ Tech Stack Details](#food-delivery-tech-stack-details)
+  * [📐 Architecture Diagrams](#food-delivery-architecture-diagrams)
+* [🤖 ChatGPT System Design](#2-chatgpt-system-design)
+  * [🛠️ Tech Stack Details](#chatgpt-tech-stack-details)
+  * [📐 Architecture Diagrams](#chatgpt-architecture-diagrams)
+* [☕ Support](#support)
+
 ## Projects
 
 ### 1. Food Delivery System Design
