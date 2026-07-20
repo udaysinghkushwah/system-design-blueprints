@@ -449,3 +449,44 @@ Replicating state across geographically separated regions requires trade-offs be
 * **Cache Stampede Prevention:** If a primary cache (Redis) goes offline or is flushed during failover, downstream databases would be hit by a stampede of queries. To prevent this, database queries are bounded by a **Resilience4j Rate Limiter & Semaphore**, and cache keys use randomized TTL jitter.
 * **Idempotency in Handlers:** Due to asynchronous replication lags, identical Kafka events or API calls might be retried during a failover window. Every write operation (e.g., `create_order`, `deduct_payment`) validates against an **Idempotency Key** stored in the database's primary shard to avoid duplicate charges or duplicate order creations.
 
+---
+
+## 11. Technology Justification: Why We Use
+
+This section explains the design rationale behind choosing specific components for the Zomato system.
+
+### A. PostgreSQL (Core Transactional DB)
+* **Why We Use It:** Relational databases are chosen for orders, payments, and user accounts because they require strict **ACID compliance** to avoid transaction anomalies (e.g., charging a customer without placing the order).
+* **Key Features Utilized:**
+  * Strict Foreign Key constraints to keep relational integrity intact.
+  * Support for Row-Level Locking (`SELECT FOR UPDATE`) to prevent race conditions during order acceptance.
+  * Transactional guarantees necessary for implementing the Outbox Pattern.
+
+### B. MongoDB (Catalog & Menu DB)
+* **Why We Use It:** Food menus have hierarchical, unstructured data models (dishes contain options, add-ons, nested categories, and varying options based on restaurant type). An RDBMS would require complex joins across `menu_categories`, `dishes`, `addons`, and `addon_groups` tables.
+* **Key Features Utilized:**
+  * **Document-Model Storage:** Menus are stored as single JSON/BSON documents. Loading a restaurant's menu requires a single index lookup (`_id`) rather than executing 5 separate SQL joins, minimizing read latency.
+
+### C. Redis (Hot Cache & Geospatial Tracking)
+* **Why We Use It:** Sub-millisecond read latency is required for checking rider availability and streaming coordinate tracking. Storing live state in Postgres or MongoDB would saturate disk I/O.
+* **Key Features Utilized:**
+  * **Redis Geo Sets (`GEOADD`, `GEORADIUS`):** Native geospatial calculations are executed in-memory.
+  * **Pub/Sub Mechanism:** Lightweight message propagation to WebSocket servers for location broadcast without persistent DB poll loops.
+  * **TTL (Time to Live):** Automatic expiration of stale rider locations.
+
+### D. Elasticsearch (Search & Discovery)
+* **Why We Use It:** Traditional relational databases do not perform well with full-text search, fuzzy search ("piza" $\rightarrow$ "pizza"), and autocomplete.
+* **Key Features Utilized:**
+  * Inverted Indexing for sub-20ms keyword searches.
+  * Geo-distance filters to restrict search results to operational zones dynamically.
+
+### E. Apache Cassandra (Historical Location Logs)
+* **Why We Use It:** 100,000 riders sending coordinates every 4 seconds generates millions of write requests. PostgreSQL would crash under this write load. Cassandra is optimized for **extremely high write throughput** because it uses Log-Structured Merge (LSM) trees (writes are append-only to memory and flushed sequentially to disk, avoiding random disk seeks).
+* **Key Features Utilized:**
+  * Wide-column partitioning on `(rider_id, date)` makes range query lookups for a specific rider's route chronological and fast.
+
+### F. Apache Kafka (Message Broker & Event Bus)
+* **Why We Use It:** Connects microservices asynchronously. When an order is accepted, we must simultaneously alert matching algorithms, notify customers, and alert analytics tools. Calling all these services synchronously (HTTP) would lead to high checkout latency and cascading failures.
+* **Key Features Utilized:**
+  * **Partitioning & Offsets:** Durable storage of events allowing consumer groups (e.g., Matching Service vs. Notification Service) to process messages at their own pace.
+

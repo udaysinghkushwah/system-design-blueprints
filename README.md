@@ -40,6 +40,23 @@ A production-grade system design for a real-time, low-latency conversational AI 
 
 ---
 
+## Core Architectural Trade-offs: Why We Use
+
+Across these designs, specific technologies are selected to solve specialized distributed systems problems:
+
+| Technology | Category | Primary Use Case | Core Rationale (Why We Use It) |
+| :--- | :--- | :--- | :--- |
+| **PostgreSQL** | Relational DB | Transactional State (Orders, Users, Accounts) | **Strict ACID compliance** and row-level locking prevent concurrency anomalies (e.g. duplicate checkouts). |
+| **MongoDB** | Document NoSQL | Semi-structured Catalog (Menus, Metadata) | **Flexible document schema** stores nested menu items and variations in a single document, avoiding heavy relational joins. |
+| **Redis** | In-Memory Cache | Active Locations, Session Cache, Pub/Sub | **Sub-millisecond latency** with native geospatial queries (`GEOADD`/`GEORADIUS`) and lightweight Pub/Sub broadcasting. |
+| **Elasticsearch** | Search Engine | Keyword Search & Geo-radial filters | **Inverted indexes** support fuzzy keyword matching, autocomplete, and fast geo-bounding search indexing. |
+| **Cassandra** | Wide-column NoSQL | Write-heavy Logs (Rider Locations, Chat History) | **High write-throughput** optimized via log-structured merge (LSM) trees, structured to store chronologically ordered data. |
+| **Apache Kafka** | Event Bus | Decoupling services asynchronously | **High-throughput messaging** queues heavy writes (like order placements or notifications) to buffer databases from traffic spikes. |
+| **SSE (Server-Sent Events)** | Communication Protocol | Streaming Chat Tokens | **Unidirectional HTTP streaming** that is natively resilient and lightweight, avoiding the bidirectional overhead of WebSockets. |
+| **Vector DB (Qdrant)** | Vector NoSQL | Semantic contexts (RAG) | **High-speed similarity searching** over token vector embeddings using HNSW indexing algorithms. |
+
+---
+
 ## Support
 
 If you find these system design blueprints helpful, support my work by buying me a coffee!
