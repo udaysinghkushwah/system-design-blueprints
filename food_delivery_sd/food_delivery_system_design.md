@@ -70,7 +70,7 @@ Let's establish a base model for traffic and storage calculations:
 
 The platform uses a microservices architecture to ensure loose coupling, fault isolation, and independent scalability.
 
-![Food Delivery System Architecture](./food_delivery_system_architecture_v2.png)
+![Food Delivery System Architecture](./food_delivery_system_architecture_v3.png)
 
 ### System Architecture Flowchart
 ```mermaid
@@ -171,7 +171,7 @@ Orders progress through a strict state machine with concurrency protections.
 
 ### C. Live Location Tracking Architecture
 
-![Food Delivery Live Ingestion & Tracking Pipeline](./food_delivery_live_tracking_v2.png)
+![Food Delivery Live Ingestion & Tracking Pipeline](./food_delivery_live_tracking_v3.png)
 
 * **Ingestion Pipeline:** 
   Riders stream coordinates via lightweight **MQTT** (preferred for low-bandwidth cellular connections) or **gRPC** (over HTTP/2) every 4 seconds.
@@ -274,7 +274,7 @@ Because the `orders`, `order_items`, and `payment_ledgers` tables grow exponenti
 
 Matching riders to orders is a dynamic optimization problem solved by the **Rider Dispatch Service**.
 
-![Food Delivery Rider Dispatch & Matching Engine](./food_delivery_rider_matching_v2.png)
+![Food Delivery Rider Dispatch & Matching Engine](./food_delivery_rider_matching_v3.png)
 
 ### The Matching Core Loop
 Instead of greedily assigning the first available rider to an order (which leads to sub-optimal global dispatch times), the Dispatch Service uses **Batch Matching** (runs every 10–15 seconds in a discrete time window).
@@ -451,7 +451,82 @@ Replicating state across geographically separated regions requires trade-offs be
 
 ---
 
-## 11. Technology Justification: Why We Use
+## 11. AWS Cloud-Native Implementation
+
+To deploy this platform in a cloud environment, we map the generic components to AWS services. This ensures scalability, high availability, and reduced operational overhead.
+
+### AWS Cloud-Native Architecture Diagram
+```mermaid
+graph TD
+    %% Clients & Global Routing
+    Customer[Customer App / Web] -->|Route 53| CloudFront[Amazon CloudFront]
+    Restaurant[Restaurant Web/App] -->|Route 53| CloudFront
+    Rider[Rider App] -->|Route 53| CloudFront
+
+    %% Ingress & API Tier
+    CloudFront -->|REST APIs / HTTPS| API_GW[Amazon API Gateway]
+    CloudFront -->|WebSockets / TCP| NLB[Network Load Balancer]
+    NLB --> WS_Svc[WebSocket Gateway Tier ECS/EKS]
+
+    %% Cognito Auth
+    API_GW --> Cognito[Amazon Cognito]
+
+    %% Compute Tier (Microservices)
+    API_GW --> ECS_Cluster[Amazon ECS / EKS Microservices]
+    WS_Svc --> ECS_Cluster
+
+    subgraph ECS_Cluster [Amazon ECS / EKS Microservices Cluster]
+        Auth_Svc[Auth & User Service]
+        Search_Svc[Search & Catalog Service]
+        Order_Svc[Order Service]
+        Tracking_Svc[Live Tracking Service]
+        Matching_Svc[Rider Matching Service]
+    end
+
+    %% Database & Messaging Tier
+    Search_Svc --> OpenSearch[Amazon OpenSearch Service]
+    Search_Svc --> DocumentDB[(Amazon DocumentDB)]
+    Search_Svc --> Redis_Cache[(Amazon ElastiCache for Redis)]
+
+    Order_Svc --> Aurora_PG[(Amazon Aurora PostgreSQL)]
+    Order_Svc --> MSK{Amazon MSK Kafka}
+
+    Tracking_Svc --> Redis_Geo[(Amazon ElastiCache for Redis)]
+    Tracking_Svc --> Keyspaces[(Amazon Keyspaces - Cassandra)]
+
+    Matching_Svc --> MSK
+    Matching_Svc --> Redis_Geo
+
+    %% Notifications & Workers
+    MSK --> Notification_Svc[Notification Service ECS]
+    MSK --> Analytics_Svc[Analytics & Fraud ECS]
+    Notification_Svc --> SNS[Amazon SNS / Pinpoint]
+    
+    %% Analytics & Data Lake
+    Keyspaces -.-> Glue[AWS Glue]
+    Aurora_PG -.-> Glue
+    Glue --> S3_Lake[(Amazon S3 Data Lake)]
+    S3_Lake --> Athena[Amazon Athena]
+```
+
+### AWS Service Mapping & Design Choices
+
+| Generic Component | AWS Service | Design Details & Rationale |
+| :--- | :--- | :--- |
+| **API Gateway** | **Amazon API Gateway & Network Load Balancer (NLB)** | API Gateway handles HTTP routing, rate-limiting, WAF integration, and authentication validation. The NLB is used for persistent WebSocket connections to route GPS coordinates directly to containerized WebSocket servers, bypassing API Gateway limits. |
+| **Microservices** | **Amazon ECS on AWS Fargate / Amazon EKS** | Containerized microservices (Java/Go/Node.js) are deployed on ECS or EKS. Fargate is used for serverless container scaling, avoiding EC2 provisioning overhead. |
+| **Transactional DB** | **Amazon Aurora PostgreSQL** | Handles order processing, user accounts, and financial ledger data. Configured with **Aurora Global Database** to replicate transaction data asynchronously with $< 1\text{s}$ replication lag to a backup region for disaster recovery. |
+| **Catalog DB** | **Amazon DocumentDB** | Stores restaurant menus as documents. Compatible with MongoDB, providing automatic clustering, scaling, and high availability. |
+| **Search Engine** | **Amazon OpenSearch Service** | Provides autocomplete, fuzzy matches, and geolocation search. Syncs with DocumentDB updates via change streams. |
+| **Live Tracking Cache** | **Amazon ElastiCache for Redis** | Stores hot rider locations in-memory. Multi-AZ replication is enabled to ensure active tracking does not fail if a Redis node goes down. |
+| **Timeseries Store** | **Amazon Keyspaces** | Serverless wide-column storage compatible with Apache Cassandra. Handles high-frequency append-only rider location history logs without server management. |
+| **Event Bus** | **Amazon MSK (Managed Streaming for Kafka)** | Decouples transactional services (Order Service) from background workers (Matching, Notifications, Analytics) with high durability and message order guarantees. |
+| **Notifications** | **Amazon SNS & Amazon Pinpoint** | Simple Notification Service sends transactional SMS and emails, while Pinpoint manages personalized push notifications. |
+| **Data Lake & Archiving** | **Amazon S3, AWS Glue, & Amazon Athena** | Cold or historical data (orders older than 90 days, location histories) is moved to S3 in Parquet format. AWS Glue catalogue manages schemas, and Athena allows running serverless SQL queries on archived records. |
+
+---
+
+## 12. Technology Justification: Why We Use
 
 This section explains the design rationale behind choosing specific components for the Food Delivery system.
 

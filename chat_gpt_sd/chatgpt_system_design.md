@@ -56,7 +56,7 @@ Let's assume:
 
 The architecture utilizes an event-driven, stream-oriented model to guarantee rapid token delivery.
 
-![ChatGPT System Architecture](./chatgpt_system_architecture.png)
+![ChatGPT System Architecture](./chatgpt_system_architecture_v2.png)
 
 ### System Architecture Flowchart
 ```mermaid
@@ -213,3 +213,53 @@ data: [DONE]
 ### 2. Model Parallelism
 * **Tensor Parallelism:** Splitting layers of a single model across multiple GPUs (intra-node) to allow models too large for one GPU's VRAM to run.
 * **Pipeline Parallelism:** Splitting consecutive layers across separate nodes (inter-node).
+
+---
+
+## 8. AWS Cloud-Native Implementation
+
+To host a low-latency LLM platform like ChatGPT on AWS, we map the components to AWS-managed infrastructure, prioritizing GPU utilization, low-latency streaming, and fast vector calculations.
+
+### AWS Cloud-Native Architecture Diagram
+```mermaid
+graph TD
+    %% Ingress & Routing
+    User[Web/Mobile Client] -->|Route 53| CloudFront[Amazon CloudFront]
+    CloudFront -->|HTTP/2 SSE / REST| ALB[Application Load Balancer]
+    ALB --> Query_Orch[Query Orchestrator ECS/EKS]
+
+    %% Cognito Authentication
+    Query_Orch --> Cognito[Amazon Cognito]
+
+    %% Orchestration Layer
+    Query_Orch --> Moderation[Amazon SageMaker / Bedrock Guardrails]
+    Query_Orch --> RAG_Svc[RAG & Embedding Service ECS/EKS]
+    Query_Orch --> Context_Svc[Context Management ECS/EKS]
+    Query_Orch --> Inf_GW[Inference Gateway ECS/EKS]
+
+    %% Cache & Storage
+    Context_Svc --> Redis[(Amazon ElastiCache for Redis)]
+    RAG_Svc --> OpenSearch[(Amazon OpenSearch Service - Vector Search)]
+    
+    %% Chat History
+    Chat_Hist_Svc[Chat History Service ECS/EKS] --> DynamoDB[(Amazon DynamoDB)]
+    ALB --> Chat_Hist_Svc
+
+    %% GPU Inference Tier
+    Inf_GW --> EKS_GPU[Amazon EKS GPU Cluster]
+    subgraph EKS_GPU ["Amazon EKS GPU Cluster (p4d / p5 Instances)"]
+        vLLM[vLLM / Triton Model Servers]
+    end
+```
+
+### AWS Service Mapping & Design Choices
+
+| Generic Component | AWS Service | Design Details & Rationale |
+| :--- | :--- | :--- |
+| **API Gateway / Ingress** | **Application Load Balancer (ALB) & CloudFront** | While Amazon API Gateway is useful, its strict **29-second execution timeout** is too short for long LLM generation runs. An ALB supports long-lived HTTP/2 chunked-transfer connections (Server-Sent Events) without timeouts, routing streams directly to orchestrator containers. |
+| **Query Orchestrator** | **Amazon ECS on AWS Fargate / Amazon EKS** | Long-running Node.js or Go services coordinate token streaming, moderation, and RAG pipelines. Deployed on containers for horizontal scalability. |
+| **Moderation Service** | **Amazon Bedrock Guardrails / SageMaker** | Amazon Bedrock Guardrails provides managed safety filters for LLM inputs/outputs. For custom toxicity models, a SageMaker serverless endpoint is used. |
+| **Context KV Cache** | **Amazon ElastiCache for Redis** | Stores active conversation session history so the orchestrator can quickly fetch and compile the context window for the next prompt. |
+| **Vector DB (RAG)** | **Amazon OpenSearch Service (Vector Engine)** | Amazon OpenSearch supports vector indices (k-NN search using HNSW graphs) to index documentation and query semantic matches in sub-10ms. |
+| **Chat History** | **Amazon DynamoDB** | Stores billions of historical chat messages. Partitioned by `session_id` (hash key) and sorted by `created_at` (range key), providing single-digit millisecond latency for fetching chronological chat histories. |
+| **Inference Nodes** | **Amazon EKS with GPU Instances** | Runs model servers (vLLM or Triton) on GPU-equipped EC2 instances (e.g., `p4d.24xlarge` with 8x Nvidia A100s or `p5.48xlarge` with Nvidia H100s). Amazon EKS manages tensor-parallel groups and scaling rules based on GPU memory/utilization metrics. |
