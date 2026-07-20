@@ -1,10 +1,10 @@
 openapi: 3.0.0
 info:
-  title: Zomato Food Delivery System API
+  title: Food Delivery System API
   description: API Contracts for Customer Searches, Order Management, and Delivery Rider Coordinates Ingestion.
   version: 1.0.0
 servers:
-  - url: https://api.zomato.com/v1
+  - url: https://api.fooddelivery.com/v1
     description: Production API Server
   - url: http://localhost:8080/v1
     description: Local Mock Server

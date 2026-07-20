@@ -1,6 +1,6 @@
-# Zomato System Design
+# Food Delivery System Design
 
-This document details the end-to-end system design for a high-scale food delivery platform like **Zomato** (or UberEats). The platform connects three major entities: **Customers**, **Restaurants**, and **Delivery Partners (Riders)**.
+This document details the end-to-end system design for a high-scale food delivery platform like a **Food Delivery Platform** (or UberEats). The platform connects three major entities: **Customers**, **Restaurants**, and **Delivery Partners (Riders)**.
 
 ---
 
@@ -70,7 +70,7 @@ Let's establish a base model for traffic and storage calculations:
 
 The platform uses a microservices architecture to ensure loose coupling, fault isolation, and independent scalability.
 
-![Zomato System Architecture](./zomato_system_architecture.png)
+![Food Delivery System Architecture](./food_delivery_system_architecture.png)
 
 ### System Architecture Flowchart
 ```mermaid
@@ -171,7 +171,7 @@ Orders progress through a strict state machine with concurrency protections.
 
 ### C. Live Location Tracking Architecture
 
-![Zomato Live Ingestion & Tracking Pipeline](./zomato_live_tracking.png)
+![Food Delivery Live Ingestion & Tracking Pipeline](./food_delivery_live_tracking.png)
 
 * **Ingestion Pipeline:** 
   Riders stream coordinates via lightweight **MQTT** (preferred for low-bandwidth cellular connections) or **gRPC** (over HTTP/2) every 4 seconds.
@@ -180,7 +180,7 @@ Orders progress through a strict state machine with concurrency protections.
   2. **Kafka Event Stream:** For historical recording. A consumer group reads from Kafka and writes to a time-series column family database like **Cassandra** partitioned by `(rider_id, date)` with a clustering key of `timestamp DESC`.
 * **Egress Pipeline (Pub/Sub):**
   Customers track deliveries via a persistent WebSocket connection. WebSockets are handled by a scalable tier of **WebSocket Gateways** (Node.js/Go).
-  1. Customer client establishes a WebSocket connection: `ws://api.zomato.com/v1/track?order_id=xyz`.
+  1. Customer client establishes a WebSocket connection: `ws://api.fooddelivery.com/v1/track?order_id=xyz`.
   2. The gateway subscribes to a Redis Pub/Sub channel specific to the assigned rider: `SUBSCRIBE rider_location:rider_123`.
   3. As location updates ingest, they publish to Redis Pub/Sub: `PUBLISH rider_location:rider_123 "<payload>"`.
   4. The WebSocket gateway pushes the coordinates down to the connected customer.
@@ -274,7 +274,7 @@ Because the `orders`, `order_items`, and `payment_ledgers` tables grow exponenti
 
 Matching riders to orders is a dynamic optimization problem solved by the **Rider Dispatch Service**.
 
-![Zomato Rider Dispatch & Matching Engine](./zomato_rider_matching.png)
+![Food Delivery Rider Dispatch & Matching Engine](./food_delivery_rider_matching.png)
 
 ### The Matching Core Loop
 Instead of greedily assigning the first available rider to an order (which leads to sub-optimal global dispatch times), the Dispatch Service uses **Batch Matching** (runs every 10–15 seconds in a discrete time window).
@@ -302,7 +302,7 @@ If two orders are placed near the same restaurant and have close delivery destin
 
 ## 7. API Design & Payloads
 
-The standardized API schema definition can be viewed in the [zomato_api_spec.yaml](./zomato_api_spec.yaml) OpenAPI specification. A runnable mock server is available in [mock_server.py](./mock_server.py) (run using `python3 mock_server.py` to start a local listener on port `8080`).
+The standardized API schema definition can be viewed in the [food_delivery_api_spec.yaml](./food_delivery_api_spec.yaml) OpenAPI specification. A runnable mock server is available in [mock_server.py](./mock_server.py) (run using `python3 mock_server.py` to start a local listener on port `8080`).
 
 Below are the key endpoints and core payload examples:
 
@@ -453,7 +453,7 @@ Replicating state across geographically separated regions requires trade-offs be
 
 ## 11. Technology Justification: Why We Use
 
-This section explains the design rationale behind choosing specific components for the Zomato system.
+This section explains the design rationale behind choosing specific components for the Food Delivery system.
 
 ### A. PostgreSQL (Core Transactional DB)
 * **Why We Use It:** Relational databases are chosen for orders, payments, and user accounts because they require strict **ACID compliance** to avoid transaction anomalies (e.g., charging a customer without placing the order).

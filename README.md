@@ -4,14 +4,14 @@ This repository contains professional system design blueprints and documentation
 
 ## Projects
 
-### 1. Zomato System Design
+### 1. Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
-* **Documentation:** [Zomato System Design (zomato_system_design.md)](./zomato_sd/zomato_system_design.md)
-* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (zomato_api_spec.yaml)](./zomato_sd/zomato_api_spec.yaml)
-* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./zomato_sd/mock_server.py) (run using `python3 zomato_sd/mock_server.py`)
+* **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./Food_delivery_sd/food_delivery_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (food_delivery_api_spec.yaml)](./Food_delivery_sd/food_delivery_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./Food_delivery_sd/mock_server.py) (run using `python3 Food_delivery_sd/mock_server.py`)
 
-#### Zomato Tech Stack Details
+#### Food Delivery Tech Stack Details
 * **PostgreSQL (Transactional Store):** Handles critical order lifecycle, payment ledger logs, and user metadata. Guarantees ACID transactions and row-level locks (`SELECT FOR UPDATE`) to prevent race conditions during driver job acceptances.
 * **MongoDB (Catalog Store):** Houses restaurant profiles and dynamic menus. The document-oriented layout stores complex nested categories and add-on lists in a single document, avoiding costly SQL joins on reads.
 * **Redis (Active Cache & Geo Index):** Manages real-time driver coordinates using in-memory geospatial indexes (`GEOADD` / `GEORADIUS`) and broadcasts live location changes using Redis Pub/Sub.
@@ -19,22 +19,22 @@ A production-grade, end-to-end system design for a high-scale food delivery plat
 * **Apache Cassandra (Archival Tracking Logs):** Digests heavy location coordinate write-streams from thousands of delivery partners, storing location logs partitioned by `(rider_id, date)`.
 * **Apache Kafka (Event Pipeline):** Decouples checkout and order placement services from background notification tasks and driver assignment loops.
 
-#### Zomato Architecture Diagrams
+#### Food Delivery Architecture Diagrams
 
 ##### A. High-Level System Architecture
 Overview of clients, gateway, microservices layer, message brokers, and databases.
 
-![Zomato System Architecture](./zomato_sd/zomato_system_architecture.png)
+![Food Delivery System Architecture](./Food_delivery_sd/food_delivery_system_architecture.png)
 
 ##### B. Real-Time Ingestion & Live Tracking Pipeline
 Visual flow of coordinates streamed from riders to Redis Geo (hot cache), Kafka, Cassandra (historical logs), and WebSocket push connections to tracking users.
 
-![Zomato Live Tracking](./zomato_sd/zomato_live_tracking.png)
+![Food Delivery Live Tracking](./Food_delivery_sd/food_delivery_live_tracking.png)
 
 ##### C. Rider Matching & Dispatch Engine
 Visual explanation of the bipartite graph match loop using candidate discovery, multi-criteria weight functions (ETA, Travel Distance, Rating), and Hungarian Algorithm solvers.
 
-![Zomato Rider Matching](./zomato_sd/zomato_rider_matching.png)
+![Food Delivery Rider Matching](./Food_delivery_sd/food_delivery_rider_matching.png)
 
 ---
 

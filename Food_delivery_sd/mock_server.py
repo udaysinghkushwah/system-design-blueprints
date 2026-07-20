@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Zomato Mock API Server
+Food Delivery Mock API Server
 Mimics the endpoints defined in the OpenAPI spec.
 Runs locally using Python's built-in http.server.
 Usage:
@@ -121,7 +121,7 @@ class MockAPIHandler(BaseHTTPRequestHandler):
         self._send_json({"error": "Endpoint not found"}, 404)
 
 def run():
-    print(f"Starting Zomato Mock API server on port {PORT}...")
+    print(f"Starting Food Delivery Mock API server on port {PORT}...")
     print(f"Base URL: http://localhost:{PORT}/v1")
     print("Endpoints:")
     print("  GET  /v1/search?lat=12.9&lon=77.5&query=pizza")
