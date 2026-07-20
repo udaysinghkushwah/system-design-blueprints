@@ -11,7 +11,15 @@ A production-grade, end-to-end system design for a high-scale food delivery plat
 * **OpenAPI 3.0 API Spec:** [OpenAPI Contract (zomato_api_spec.yaml)](./zomato_sd/zomato_api_spec.yaml)
 * **Local Mock API Server:** [Mock Python Server (mock_server.py)](./zomato_sd/mock_server.py) (run using `python3 zomato_sd/mock_server.py`)
 
-#### Architecture Diagrams
+#### Zomato Tech Stack Details
+* **PostgreSQL (Transactional Store):** Handles critical order lifecycle, payment ledger logs, and user metadata. Guarantees ACID transactions and row-level locks (`SELECT FOR UPDATE`) to prevent race conditions during driver job acceptances.
+* **MongoDB (Catalog Store):** Houses restaurant profiles and dynamic menus. The document-oriented layout stores complex nested categories and add-on lists in a single document, avoiding costly SQL joins on reads.
+* **Redis (Active Cache & Geo Index):** Manages real-time driver coordinates using in-memory geospatial indexes (`GEOADD` / `GEORADIUS`) and broadcasts live location changes using Redis Pub/Sub.
+* **Elasticsearch (Search Engine):** Drives food search, text keyword autocomplete, and geospatial listing queries (e.g., "nearby restaurants within 5km") with sub-20ms latencies.
+* **Apache Cassandra (Archival Tracking Logs):** Digests heavy location coordinate write-streams from thousands of delivery partners, storing location logs partitioned by `(rider_id, date)`.
+* **Apache Kafka (Event Pipeline):** Decouples checkout and order placement services from background notification tasks and driver assignment loops.
+
+#### Zomato Architecture Diagrams
 
 ##### A. High-Level System Architecture
 Overview of clients, gateway, microservices layer, message brokers, and databases.
@@ -34,26 +42,16 @@ Visual explanation of the bipartite graph match loop using candidate discovery, 
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt_sd/chatgpt_system_design.md)
-* **Architecture Diagram:**
 
+#### ChatGPT Tech Stack Details
+* **Server-Sent Events (SSE):** Native HTTP-based unidirectional streaming protocol used to push response tokens text-by-text as they are generated. More lightweight and resilient than full-duplex WebSockets.
+* **Apache Cassandra:** Stores billions of conversational chat history logs. Message writes are partition-aligned on `session_id` and sorted by creation timestamp for chronological reads.
+* **Redis:** Caches short-term active chat context windows and session state, letting the Query Orchestrator quickly append historical prompts during conversation rounds.
+* **Qdrant (Vector DB):** Indexes chunked vector embeddings using HNSW graphs for Retrieval-Augmented Generation (RAG), returning matching context documents within 10ms.
+* **vLLM / Triton:** Handles dynamic batching, GPU tensor parallelism, and KV-cache management (PagedAttention) to optimize inference resource efficiency and throughput.
+
+#### ChatGPT Architecture Diagram
 ![ChatGPT System Architecture](./chat_gpt_sd/chatgpt_system_architecture.png)
-
----
-
-## Core Architectural Trade-offs: Why We Use
-
-Across these designs, specific technologies are selected to solve specialized distributed systems problems:
-
-| Technology | Category | Primary Use Case | Core Rationale (Why We Use It) |
-| :--- | :--- | :--- | :--- |
-| **PostgreSQL** | Relational DB | Transactional State (Orders, Users, Accounts) | **Strict ACID compliance** and row-level locking prevent concurrency anomalies (e.g. duplicate checkouts). |
-| **MongoDB** | Document NoSQL | Semi-structured Catalog (Menus, Metadata) | **Flexible document schema** stores nested menu items and variations in a single document, avoiding heavy relational joins. |
-| **Redis** | In-Memory Cache | Active Locations, Session Cache, Pub/Sub | **Sub-millisecond latency** with native geospatial queries (`GEOADD`/`GEORADIUS`) and lightweight Pub/Sub broadcasting. |
-| **Elasticsearch** | Search Engine | Keyword Search & Geo-radial filters | **Inverted indexes** support fuzzy keyword matching, autocomplete, and fast geo-bounding search indexing. |
-| **Cassandra** | Wide-column NoSQL | Write-heavy Logs (Rider Locations, Chat History) | **High write-throughput** optimized via log-structured merge (LSM) trees, structured to store chronologically ordered data. |
-| **Apache Kafka** | Event Bus | Decoupling services asynchronously | **High-throughput messaging** queues heavy writes (like order placements or notifications) to buffer databases from traffic spikes. |
-| **SSE (Server-Sent Events)** | Communication Protocol | Streaming Chat Tokens | **Unidirectional HTTP streaming** that is natively resilient and lightweight, avoiding the bidirectional overhead of WebSockets. |
-| **Vector DB (Qdrant)** | Vector NoSQL | Semantic contexts (RAG) | **High-speed similarity searching** over token vector embeddings using HNSW indexing algorithms. |
 
 ---
 
