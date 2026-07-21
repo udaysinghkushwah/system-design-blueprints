@@ -14,7 +14,8 @@
   - [🔗 URL Shortener System Design](#1-url-shortener-system-design)
   - [📋 Pastebin System Design](#2-pastebin-system-design)
   - [🍔 Food Delivery System Design](#3-food-delivery-system-design)
-  - [🤖 ChatGPT System Design](#4-chatgpt-system-design)
+  - [🧠 RAG Pipeline System Design](#4-rag-pipeline-system-design)
+  - [🤖 ChatGPT System Design](#5-chatgpt-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -117,7 +118,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | # | Topic | Status |
 |---|-------|--------|
 | 1 | Design ChatGPT | ✅ [Blueprint](./chat_gpt/chatgpt_system_design.md) |
-| 2 | Design RAG Pipeline | ⬜ Planned |
+| 2 | Design RAG Pipeline | ✅ [Blueprint](./rag_pipeline/rag_pipeline_system_design.md) |
 | 3 | Design Vector Database | ⬜ Planned |
 | 4 | Design AI Agent Framework | ⬜ Planned |
 | 5 | Design LLM Gateway | ⬜ Planned |
@@ -257,7 +258,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
-| 7 | AI Systems | 7 | 1 | ✅⬜⬜⬜⬜⬜⬜ |
+| 7 | AI Systems | 7 | 2 | ✅✅⬜⬜⬜⬜⬜ |
 | 8 | Distributed Systems | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -267,7 +268,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **4** | **3.7%** |
+| | **Total** | **108** | **5** | **4.6%** |
 
 ---
 
@@ -374,7 +375,33 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 
 ---
 
-### 4. ChatGPT System Design
+### 4. RAG Pipeline System Design
+A production-grade system design for a **Retrieval-Augmented Generation** pipeline — the backbone of knowledge-grounded AI systems. Covers document ingestion, parent-child chunking, hybrid retrieval (dense + BM25), cross-encoder re-ranking, prompt assembly, and grounded LLM generation with citations.
+
+* **Documentation:** [RAG Pipeline System Design (rag_pipeline_system_design.md)](./rag_pipeline/rag_pipeline_system_design.md)
+
+#### RAG Pipeline Tech Stack Details (with AWS Service Mapping)
+* **Vector Database (Amazon OpenSearch Serverless):** HNSW-indexed vector search over 10M+ chunks with metadata filtering and scalar quantization for 4x storage reduction.
+* **Elasticsearch (Amazon OpenSearch Service):** BM25 sparse keyword search for exact-match retrieval. Combined with dense search via Reciprocal Rank Fusion (RRF) for hybrid retrieval.
+* **Cross-Encoder Re-ranker (Amazon SageMaker):** `cross-encoder/ms-marco-MiniLM-L6` re-scores top-50 candidates for 10–20% higher accuracy than bi-encoder retrieval alone.
+* **Embedding Service (Amazon Bedrock Titan):** Managed embedding API for batch document indexing and real-time query embedding. No GPU infrastructure to manage.
+* **LLM Inference (Amazon Bedrock Claude/Titan):** Managed LLM inference with SSE streaming. Supports augmented prompt generation with retrieved context and inline citations.
+
+#### RAG Pipeline Architecture Diagrams
+
+##### A. High-Level RAG Architecture — Ingestion & Query Planes
+Two-plane design: Offline Ingestion Plane (parse → chunk → embed → index) and Online Query Plane (embed → retrieve → re-rank → generate).
+
+![RAG Pipeline System Architecture](./rag_pipeline/rag_pipeline_system_architecture.png)
+
+##### B. RAG Query Pipeline — Hybrid Retrieval + Re-ranking + Generation
+End-to-end query flow showing parallel dense/sparse retrieval, RRF fusion, cross-encoder re-ranking, prompt assembly, and LLM streaming with latency annotations.
+
+![RAG Query Flow](./rag_pipeline/rag_query_flow.png)
+
+---
+
+### 5. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt/chatgpt_system_design.md)
