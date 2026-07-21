@@ -39,7 +39,7 @@ Let's assume:
 
 ### Throughput (QPS)
 * **Average Request QPS:**
-  $$\frac{1,000,000,000 \text{ messages}}{86,400 \text{ seconds}} \approx 11,574 \text{ QPS}$$
+  $$\text{QPS} = \frac{1,000,000,000 \text{ messages}}{86,400 \text{ seconds}} \approx 11,574 \text{ QPS}$$
 * **Peak Request QPS (3x average):** 
   $$11,574 \times 3 \approx 34,722 \text{ QPS}$$
 
@@ -56,210 +56,145 @@ Let's assume:
 
 The architecture utilizes an event-driven, stream-oriented model to guarantee rapid token delivery.
 
-![ChatGPT System Architecture](./chatgpt_system_architecture_v2.png)
+![ChatGPT System Architecture](./chatgpt_system_architecture.png)
 
 ### System Architecture Flowchart
 ```mermaid
 graph TD
-    %% Clients
-    User[Web/Mobile Client] -->|HTTPS/SSE| API_GW[API Gateway]
+    %% client
+    Client[Web/Mobile Client] -->|HTTP/2 SSE stream| ALB[Application Load Balancer]
     
-    %% Gateway
-    API_GW --> Auth[Auth & Rate Limiter]
-    API_GW --> Chat_History_Svc[Chat History Service]
-    API_GW --> Query_Svc[Query Orchestrator]
-
-    %% Orchestrator downstream
-    Query_Svc --> Moderation_Svc[Content Moderation Service]
-    Query_Svc --> RAG_Svc[RAG & Embedding Service]
-    Query_Svc --> Context_Svc[Context Management Service]
-    Query_Svc --> Inference_GW[Inference Gateway]
-
-    %% Storage
-    Chat_History_Svc --> Cassandra[(Cassandra - Chat Logs)]
-    RAG_Svc --> Vector_DB[(pgvector / Qdrant)]
-    Context_Svc --> Redis[(Redis Cluster - KV Session Cache)]
-    Inference_GW --> LLM_Cluster[Inference Nodes: vLLM / Triton]
+    %% Ingress & Orchestration
+    ALB --> Gateway[Query Orchestrator Cluster]
+    Gateway --> Auth[Cognito Auth]
+    Gateway --> Mod[Moderation Engine]
+    Gateway --> Cache[Redis Cache]
+    
+    %% Storage & Index
+    Gateway --> History[(DynamoDB Chat History)]
+    Gateway --> Vector[(OpenSearch Vector Store)]
+    
+    %% GPU Inference
+    Gateway --> InfGateway[Inference Gateway Node]
+    InfGateway --> GPUPool[vLLM Inference Cluster]
 ```
 
 ### Core Components
-
-1. **API Gateway:** Entry point that routes HTTP requests and maintains persistent **Server-Sent Events (SSE)** connections for streaming tokens back to clients.
-2. **Query Orchestrator:** The brain of the system. Co-ordinates the lifecycle of a prompt: verifies auth, calls Moderation, fetches history, coordinates RAG, sends formatted payloads to the inference engine, and pipes token packets back to the gateway.
-3. **Content Moderation Service:** Run asynchronously or synchronously prior to model execution. Uses classification models to block queries violating safety policies (e.g., self-harm, hate speech).
-4. **Context Management Service:** Keeps the active chat history context. Because LLMs have context limits and charge per token, it summarizes/compresses historical messages once a threshold is reached.
-5. **Inference Gateway:** Manages load balancing across Triton Inference Server or vLLM clusters. Handles tensor parallel groups, token caching (KV Cache), and queues prompts when GPUs are saturated.
+1. **Application Load Balancer (ALB):** Routes HTTP/2 SSE streaming connections.
+2. **Query Orchestrator:** Stateless controller coordinating moderation, history, and RAG pipelines.
+3. **Inference Gateway:** Distributes batch queues across vLLM engines.
+4. **vLLM Inference Cluster:** Run GPU-level tensor parallel executions.
 
 ---
 
-## 4. Key Workflows & Engineering Details
+## 4. Component-Level Design
 
-### A. Streaming Response Mechanism (SSE vs WebSockets)
+### A. Context Window Memory Management
 
-![ChatGPT Token Streaming & GPU Inference](./chatgpt_token_streaming.png)
+Maintaining conversational history is vital. Since model context windows are limited, we implement a multi-tier memory strategy:
 
-To display text character-by-character, we must push downstream tokens in real-time.
-
-* **Why Server-Sent Events (SSE)?**
-  * **Unidirectional Stream:** The client only sends a single request (the prompt), and the server streams tokens back. WebSockets support full-duplex communication, which is overkill and uses more server overhead (WS connections need keep-alive pings and custom framings).
-  * **HTTP Native:** SSE works over HTTP/2, automatically supports reconnection, and is lighter on network infrastructure.
-
-#### **Flow of a Streaming Session:**
-1. Client issues a `POST /v1/chat/completions` request.
-2. The Gateway establishes a chunked-transfer HTTP stream (`Content-Type: text/event-stream`).
-3. The inference engine outputs tokens.
-4. Gateway writes each token as a message packet: `data: {"token": "hello"}`.
-5. The stream is terminated with `data: [DONE]`.
+| Memory Tier | How It Works | Storage Medium | TTL / Lifecycle |
+| :--- | :--- | :--- | :--- |
+| **Hot Buffer** | Stores last 5 turns of conversation in raw token representation. | Redis Cache | 1 Hour |
+| **Summarized Memory** | Older chat turns are compressed into a bullet-point summary. | Redis / DynamoDB | Session Lifecycle |
+| **Long-Term Memory** | Entire history is embedded and stored in Vector Database. | OpenSearch | Indefinite |
 
 ---
 
-### B. Context Window & Memory Management
+### B. GPU Queueing and Dynamic Batching
 
-![ChatGPT RAG & Context Window Memory](./chatgpt_rag_context.png)
+Model execution requires batching inputs to maximize tensor cores efficiency:
 
-An LLM does not remember past queries natively. To maintain a conversational thread, the system must append previous messages to the input payload.
-
-1. **KV Caching:**
-   Generating text is auto-regressive (the next token is predicted using all previous tokens). To prevent recalculating attention vectors for historical text repeatedly, GPUs cache keys and values (KV Cache) in GPU memory.
-   * **PagedAttention (vLLM):** Partitions KV cache into non-contiguous blocks, mimicking virtual memory in operating systems, reducing memory waste by 96% and allowing larger batch sizes.
-2. **Context Compression (Sliding Window & Summarization):**
-   * If a conversation runs over 8,000 tokens, the Context Service compresses it by passing past messages to a smaller LLM for summarization.
-   * Only the summary plus the last 3-4 messages are sent as context to the primary model, optimizing latency and resource utilization.
+```
+[Incoming Request Streams]
+     ├── Stream 1 ─▶ [Inference Gateway Queue] ─▶ Dynamic Batcher (2ms Window)
+     ├── Stream 2 ─▶           │
+     └── Stream 3 ─▶           ▼
+                   [Batch of 32 Prompts] ──▶ GPU Tensor Core Execution
+```
 
 ---
 
-### C. Retrieval-Augmented Generation (RAG)
-For factual, document-specific queries, the system pulls external context:
+## 5. Database Schema & State Strategy
 
-```
-[User Prompt] ──> [Query Embedding (Ada/BERT)] ──> [Vector DB Search] 
-                                                        │
-                                                        ▼
-[LLM Inference Payload] <── [Combine Prompt + Context] <── [Top K Documents]
-```
-* **Vector DB Indexing:** Document texts are chunked, embedded into high-dimensional vectors, and indexed in **Qdrant** or **pgvector** using **HNSW** (Hierarchical Navigable Small World) graphs for sub-10ms nearest neighbor search.
+### 1. `chat_messages` Table (DynamoDB)
+* **Partition Key:** `session_id` (String)
+* **Sort Key:** `created_at` (Number)
+* **Attributes:**
+  * `message_id` (UUID)
+  * `role` (String - user/assistant)
+  * `content` (String)
+  * `tokens_count` (Number)
 
----
-
-## 5. Database Schema Design
-
-### 1. `chat_sessions` Table (PostgreSQL)
-Manages session metadata (reads are low-frequency compared to messages).
-```sql
-CREATE TABLE chat_sessions (
-    session_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL,
-    title VARCHAR(255) DEFAULT 'New Chat',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 2. `chat_messages` Table (Cassandra / Wide-Column Store)
-We write billions of messages daily. We partition by `session_id` and sort by message creation time for fast chronological loading.
-```sql
-CREATE KEYSPACE chat_history WITH replication = {
-    'class': 'NetworkTopologyStrategy', 
-    'replication_factor': 3
-};
-
-CREATE TABLE chat_history.messages (
-    session_id uuid,
-    message_id uuid,
-    role text, -- 'user' or 'assistant'
-    content text,
-    created_at timestamp,
-    PRIMARY KEY (session_id, created_at)
-) WITH CLUSTERING ORDER BY (created_at DESC);
-```
+### 2. Sharding & Scaling
+* **DynamoDB Auto-Partitioning:** DynamoDB automatically splits partitions by `session_id` hash ranges when throughput exceeds limits, ensuring infinite horizontal scale.
 
 ---
 
 ## 6. API Design & Payloads
 
-### 1. Create a Chat Completion (Stream)
+### 1. Stream Conversational Completion
 * **Endpoint:** `POST /v1/chat/completions`
-* **Payload:**
-```json
-{
-  "session_id": "9a38a3ce-21e3-4467-b8df-dc11202e88a1",
-  "model": "gpt-4o",
-  "messages": [
-    {
-      "role": "user",
-      "content": "Explain quantum physics to a five year old."
-    }
-  ],
-  "stream": true
-}
+* **Response Header:** `Content-Type: text/event-stream`
+* **Response Stream Chunk:**
 ```
-* **Stream Response Format (Event-Stream packets):**
-```
-data: {"choices": [{"delta": {"content": "Quantum"}}]}
-data: {"choices": [{"delta": {"content": " physics"}}]}
-data: {"choices": [{"delta": {"content": " is"}}]}
-...
+data: {"choices": [{"delta": {"content": "Hello"}}]}
+data: {"choices": [{"delta": {"content": " world"}}]}
 data: [DONE]
 ```
 
 ---
 
-## 7. Scalability & GPU Optimization
+## 7. End-to-End Workflow Sequence
 
-### 1. GPU Queueing and Dynamic Batching
-* GPUs compute operations faster when running inputs in batches.
-* The Inference Gateway buffers incoming individual prompts for a tiny window (e.g., 2–5ms) and batches them together before running inference, maximizing throughput.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Proxy as Query Orchestrator
+    participant GPU as Triton GPU Cluster
+    participant Dynamo as DynamoDB History
 
-### 2. Model Parallelism
-* **Tensor Parallelism:** Splitting layers of a single model across multiple GPUs (intra-node) to allow models too large for one GPU's VRAM to run.
-* **Pipeline Parallelism:** Splitting consecutive layers across separate nodes (inter-node).
+    Client->>Proxy: POST /v1/chat/completions (Prompt)
+    Proxy->>Proxy: Sanity / Safety check
+    Proxy->>Dynamo: Fetch last 5 thread turns
+    Proxy->>GPU: Send planning prompt & execute dynamic batch
+    GPU-->>Proxy: Publish generated token streams
+    Proxy-->>Client: Stream chunk frame packets (SSE)
+    Proxy->>Dynamo: Save session updates
+```
 
 ---
 
-## 8. AWS Cloud-Native Implementation
+## 8. Scalability & Resilience Strategies
+* **PagedAttention Optimization:** Implement block-level cache partition tables to prevent memory fragmentation on GPU nodes hosting long-running conversational threads.
+* **Toxicity Break Filter:** Stop GPU model token generation loops immediately if the output fails safety heuristics mid-generation.
 
-To host a low-latency LLM platform like ChatGPT on AWS, we map the components to AWS-managed infrastructure, prioritizing GPU utilization, low-latency streaming, and fast vector calculations.
+---
 
-### AWS Cloud-Native Architecture Diagram
-```mermaid
-graph TD
-    %% Ingress & Routing
-    User[Web/Mobile Client] -->|Route 53| CloudFront[Amazon CloudFront]
-    CloudFront -->|HTTP/2 SSE / REST| ALB[Application Load Balancer]
-    ALB --> Query_Orch[Query Orchestrator ECS/EKS]
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Active-Active Region Routing:** Global DNS routing redirects users to secondary regions during model cluster hardware failures.
+* **Async Session Replication:** Chat history backups are updated across replication zones asynchronously with minimal write lag.
 
-    %% Cognito Authentication
-    Query_Orch --> Cognito[Amazon Cognito]
+---
 
-    %% Orchestration Layer
-    Query_Orch --> Moderation[Amazon SageMaker / Bedrock Guardrails]
-    Query_Orch --> RAG_Svc[RAG & Embedding Service ECS/EKS]
-    Query_Orch --> Context_Svc[Context Management ECS/EKS]
-    Query_Orch --> Inf_GW[Inference Gateway ECS/EKS]
+## 10. AWS Cloud-Native Implementation
 
-    %% Cache & Storage
-    Context_Svc --> Redis[(Amazon ElastiCache for Redis)]
-    RAG_Svc --> OpenSearch[(Amazon OpenSearch Service - Vector Search)]
-    
-    %% Chat History
-    Chat_Hist_Svc[Chat History Service ECS/EKS] --> DynamoDB[(Amazon DynamoDB)]
-    ALB --> Chat_Hist_Svc
-
-    %% GPU Inference Tier
-    Inf_GW --> EKS_GPU[Amazon EKS GPU Cluster]
-    subgraph EKS_GPU ["Amazon EKS GPU Cluster (p4d / p5 Instances)"]
-        vLLM[vLLM / Triton Model Servers]
-    end
-```
-
-### AWS Service Mapping & Design Choices
+### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |
 | :--- | :--- | :--- |
-| **API Gateway / Ingress** | **Application Load Balancer (ALB) & CloudFront** | While Amazon API Gateway is useful, its strict **29-second execution timeout** is too short for long LLM generation runs. An ALB supports long-lived HTTP/2 chunked-transfer connections (Server-Sent Events) without timeouts, routing streams directly to orchestrator containers. |
-| **Query Orchestrator** | **Amazon ECS on AWS Fargate / Amazon EKS** | Long-running Node.js or Go services coordinate token streaming, moderation, and RAG pipelines. Deployed on containers for horizontal scalability. |
-| **Moderation Service** | **Amazon Bedrock Guardrails / SageMaker** | Amazon Bedrock Guardrails provides managed safety filters for LLM inputs/outputs. For custom toxicity models, a SageMaker serverless endpoint is used. |
-| **Context KV Cache** | **Amazon ElastiCache for Redis** | Stores active conversation session history so the orchestrator can quickly fetch and compile the context window for the next prompt. |
-| **Vector DB (RAG)** | **Amazon OpenSearch Service (Vector Engine)** | Amazon OpenSearch supports vector indices (k-NN search using HNSW graphs) to index documentation and query semantic matches in sub-10ms. |
-| **Chat History** | **Amazon DynamoDB** | Stores billions of historical chat messages. Partitioned by `session_id` (hash key) and sorted by `created_at` (range key), providing single-digit millisecond latency for fetching chronological chat histories. |
-| **Inference Nodes** | **Amazon EKS with GPU Instances** | Runs model servers (vLLM or Triton) on GPU-equipped EC2 instances (e.g., `p4d.24xlarge` with 8x Nvidia A100s or `p5.48xlarge` with Nvidia H100s). Amazon EKS manages tensor-parallel groups and scaling rules based on GPU memory/utilization metrics. |
+| **API Gateway / Ingress** | **Application Load Balancer (ALB)** | Supports long-lived HTTP/2 chunked-transfer connections. |
+| **Query Orchestrator** | **Amazon ECS on AWS Fargate** | Coordinates token streaming, RAG pipelines, and caching. |
+| **Chat History** | **Amazon DynamoDB** | Persistent storage for chat messages, partitioned by session. |
+| **Inference Nodes** | **Amazon EKS with GPU Instance Pools** | Hosts model servers on GPU-equipped EC2 instances. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. Amazon DynamoDB (Chat History)
+* **Why We Use It:** Relational tables would fail to execute fast queries under millions of concurrent write tasks. DynamoDB's key-value partition model executes reads/writes in single-digit milliseconds at scale.
+
+### B. Amazon EKS GPU Clusters (Inference Core)
+* **Why We Use It:** Model execution requires scaling clusters dynamically based on GPU RAM utilization metrics. EKS handles complex container lifecycle policies across GPU instances.

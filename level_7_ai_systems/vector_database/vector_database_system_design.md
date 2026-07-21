@@ -58,7 +58,6 @@ By converting `float32` vectors (4 bytes per dim) into quantized `int8` represen
 * Quantized Vector Size: $1536 \text{ dims} \times 1 \text{ byte} = 1,536 \text{ bytes}$
 * **Quantized Total Memory Required (Vector + Index):**
   $$100,000,000 \times (1,536 \text{ bytes} + 256 \text{ bytes}) \approx \mathbf{179.2 \text{ GB RAM}}$$
-  *This is a **72% reduction** in memory, allowing the index to scale economically on standard memory-optimized instances.*
 
 ---
 
@@ -95,58 +94,23 @@ graph TD
 ```
 
 ### Core Components
-
-1. **Coordinator Node:** Entry point that handles cluster routing. For queries, it scatters searches across shards and aggregates results (gather). For writes, it routes batches to target shard primary nodes.
-2. **Write-Ahead Log (WAL):** Persists all incoming upsert operations sequentially to local disk for crash recovery before acknowledging writes.
-3. **Memtable (Mutable Segment):** In-memory buffer storing newly upserted vectors. Searches scan this segment linearly (flat exact search) since constructing an HNSW index on-the-fly is too slow.
-4. **Segment Builder / Compactor:** Periodically flushes full Memtables to disk. It runs an offline background builder that constructs the HNSW index structure and outputs read-only, immutable disk segments.
-5. **Immutable Disk Segments:** Read-only segments containing the optimized HNSW graph index, quantized vectors, and metadata tables mapped directly in-memory via `mmap`.
+1. **Coordinator Node:** Manages cluster topology and maps queries to active node shards.
+2. **Write-Ahead Log (WAL):** Durably commits vectors to local disk before memory insertion.
+3. **Memtable (Mutable Segment):** In-memory buffer storing fresh unsorted vectors.
+4. **Segment Compactor:** Runs background thread pools compiling closed segments into HNSW indices.
 
 ---
 
-## 4. Key Workflows & Engineering Details
-
-### A. Indexing Strategies — HNSW vs. IVF-PQ
-
-Selecting the right indexing algorithm determines the recall/latency trade-off:
-
-| Algorithm | How It Works | Query Latency | Recall Rate | Memory Footprint | Best Use Case |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Flat Index (Exact)** | Brute force linear scan ($\mathcal{O}(N)$). | High (slows down linearly) | $100\%$ (Exact) | Low | Small datasets (< 100k vectors) |
-| **IVF-PQ (Inverted File)** | Clustered centroids (K-Means) + Product Quantization codebooks. | Medium ($10\text{–}30\text{ms}$) | $85\text{–}95\%$ | Very Low (up to 95% reduction) | Cost-sensitive billions-scale search |
-| **HNSW (Graph-Based) ✅** | Multi-layer skip-list graphs where edges connect similar vectors. | Low ($< 5\text{ms}$) | **High ($95\text{–}99\%$)** | High (needs all graph nodes/links in memory) | **Default choice** for low-latency, high-accuracy RAG |
-
----
+## 4. Component-Level Design
 
 ### B. pre-filtering vs. Post-Filtering
 
 When searching vectors with scalar metadata filters, the execution order is critical.
 
-```
-Post-Filtering (Naive):
-[Query Vector] ──▶ [HNSW ANN Search (Top-k)] ──▶ [Filter Metadata] ──▶ Return results (Recall drops if items filtered out)
-
-Pre-Filtering / Single-Stage Search (Correct):
-[Query Vector + Filter] ──▶ [Traverse HNSW Graph]
-                                  │
-                                  ├──▶ If neighbor matches filter: Add to candidate pool
-                                  └──▶ If neighbor fails filter: Skip link, traverse next edge
-```
-
-* **Why Post-Filtering Fails:** If the HNSW search returns the top-10 nearest vectors, but 9 of them do not match the filter `category = "shoes"`, the client receives only 1 result instead of 10. The recall rate collapses.
-* **Pre-Filtering (Single-Stage Filter Graph Search):** The metadata index is integrated directly into the graph traversal logic. When visiting nodes in the HNSW layers, neighbor links are skipped dynamically if they do not satisfy the filter constraints.
-
----
-
-### C. Write & Flush Path
-
-1. **Upsert Request:** Client sends a batch of vector points.
-2. **WAL Append:** The write service appends the raw vector, ID, and payload to the Write-Ahead Log.
-3. **Memtable Ingestion:** Point is inserted into the active memory segment (Memtable). An inverted index is updated in memory for metadata filters.
-4. **Segment Flush:** When the Memtable reaches threshold capacity (e.g., 500,000 vectors), it is closed to new writes and a background thread is spawned:
-   * It calculates the quantization metrics for the segment.
-   * It builds the HNSW graph layers from scratch.
-   * It serializes the HNSW links, quantized vectors, and payload blocks into a single immutable segment file on disk.
+| Filtering Type | Method | Recall Impact | Search Complexity |
+| :--- | :--- | :--- | :--- |
+| **Post-Filtering** | Run ANN search first, discard mismatches | Low recall (results truncated) | $\mathcal{O}(\log N)$ |
+| **Pre-Filtering ✅** | Traverse graph, ignore mismatch links | **High recall (guaranteed target count)**| $\mathcal{O}(\log N)$ |
 
 ---
 
@@ -155,7 +119,6 @@ Pre-Filtering / Single-Stage Search (Correct):
 To avoid loading entire file payloads into RAM, segment files are divided into separate block areas.
 
 ### 1. Disk Segment File Structure
-
 ```
 ┌────────────────────────────────────────────────────────┐
 │ Segment Header (Magic bytes, format version, stats)   │
@@ -164,14 +127,13 @@ To avoid loading entire file payloads into RAM, segment files are divided into s
 ├────────────────────────────────────────────────────────┤
 │ HNSW Graph Links Block (Adjacency lists mapped via mmap)│
 ├────────────────────────────────────────────────────────┤
-│ Metadata Key-Value Blocks (Protobuf/FlatBuffers payload)│
+│ Metadata Key-Value Blocks (Payload dictionary)         │
 ├────────────────────────────────────────────────────────┤
 │ Payload Index (B-Tree/Bitmap indexes for filters)     │
 └────────────────────────────────────────────────────────┘
 ```
 
 ### 2. Client API Schema (Upsert Payload)
-
 ```json
 {
   "points": [
@@ -191,34 +153,69 @@ To avoid loading entire file payloads into RAM, segment files are divided into s
 
 ---
 
-## 6. AWS Cloud-Native Implementation
+## 6. API Design & Payloads
 
-For a production cloud deployment, the system uses memory-optimized nodes for the active querying segment layer and object storage for snapshot state persistence.
-
-### AWS Cloud-Native Architecture Diagram
-```mermaid
-graph TD
-    %% client
-    Client[EKS App Clients] -->|Route 53| ALB[Application Load Balancer]
-    ALB --> ProxyCluster[Coordination Proxy Tier ECS Fargate]
-    ProxyCluster --> ServiceDiscovery[AWS Cloud Map]
-
-    %% Compute Shards
-    ServiceDiscovery --> Node1[Database Shard 1 Instance r6g.xlarge]
-    ServiceDiscovery --> Node2[Database Shard 2 Instance r6g.xlarge]
-
-    subgraph ShardNode ["Database Shard Node"]
-        Node1 --> WAL[(EBS gp3 - Write-Ahead Log)]
-        Node1 --> RAM_Index[(HNSW Index in RAM)]
-        Node1 -.->|Daily Backup| S3[(Amazon S3 - Snapshot Archive)]
-    end
+### 1. Upsert Points
+* **Endpoint:** `PUT /collections/my_collection/points`
+* **Response:**
+```json
+{
+  "status": "acknowledged",
+  "points_count": 1
+}
 ```
 
-### AWS Service Mapping & Design Choices
+---
 
-| Component | AWS Service | Design Rationale |
+## 7. End-to-End Workflow Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Proxy as Coordinator Node
+    participant Shard as Shard Primary Node
+    participant S3 as Amazon S3 Snapshot
+
+    Client->>Proxy: PUT /collections/my_collection/points (vector)
+    Proxy->>Shard: Route upsert by consistent hash
+    Shard->>Shard: Append to Write-Ahead Log (WAL)
+    Shard->>Shard: Ingest into active MemTable segment
+    Shard-->>Proxy: Return success ack
+    Proxy-->>Client: Return HTTP 200 OK
+    Note over Shard: Background Compactor builds HNSW graph & uploads segment to S3
+```
+
+---
+
+## 8. Scalability & Resilience Strategies
+* **Consistent Hash Sharding:** Distribute data shards horizontally using MurmurHash3 on Point UUID.
+* **Quantized Distance Scoring:** Run SIMD instruction sets (AVX-512 / ARM Neon) to compute cosine distance directly on `int8` vectors, accelerating search loops by 4x.
+
+---
+
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Raft-Based Shard Replication:** Shards are grouped in Raft replica sets (1 Leader, 2 Followers). If the leader node crashes, followers hold an election in $< 500\text{ms}$ and promote a new leader.
+
+---
+
+## 10. AWS Cloud-Native Implementation
+
+### AWS Service Mapping & Rationale
+
+| Generic Component | AWS Service | Design Details & Rationale |
 | :--- | :--- | :--- |
-| **Proxy / Coordinator** | **Amazon ECS Fargate** | Coordinates sharding maps and acts as the entry point. Stateless, auto-scales based on gateway connection load. |
-| **Database Shards** | **Amazon EC2 (r6g / r6i instances)** | High memory-to-CPU ratio instances (e.g., `r6g.2xlarge` with 64 GB RAM) hosting the active index segment, vector calculations, and graph traversal logic. |
-| **WAL Storage** | **Amazon EBS (gp3)** | High IOPS SSD volume mounted directly on EC2 shard nodes to handle sequential write streams to the WAL. |
-| **Snapshot Cold Store** | **Amazon S3** | Inactive, compressed segments and cluster configurations are stored on S3. When a database node recovers, it pulls snapshots from S3 to rebuild its index state. |
+| **Coordinator Proxy** | **Amazon ECS Fargate** | Coordinates sharding maps and handles route lookups. |
+| **Compute Nodes** | **Amazon EC2 (r6g instances)** | High RAM instance pools hold HNSW indices in memory. |
+| **WAL Storage** | **Amazon EBS (gp3)** | High IOPS SSD volumes mount to handle write queues. |
+| **Segment Backup** | **Amazon S3** | Durable cold archive stores compiled index snapshots. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. Memory-Optimized EC2 Instances (r6g / r6i)
+* **Why We Use It:** HNSW graph indices must live entirely in physical RAM to maintain sub-20ms latency. Normal compute instances lack the memory-to-core ratio, causing page faults during memory-mapped file scans.
+
+### B. Amazon EBS gp3 (WAL Store)
+* **Why We Use It:** Real-time ingestion requires low-latency disk flush triggers. `gp3` provides high IOPS and predictable throughput, ensuring database write queues do not cause thread starvation on ingest.

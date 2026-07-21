@@ -80,31 +80,23 @@ graph TD
 ```
 
 ### Core Components
-
-1. **Storage Client SDK:** Integrated with client applications. It talks to the Master to get chunk locations and caches this metadata. It directly streams blocks from Chunk Servers.
-2. **Master Server (Metadata Node):** The central coordinator. Manages the directory namespace, file-to-chunk mapping, replica placement, garbage collection, and chunk server health checks.
-3. **Chunk Servers (Data Nodes):** Commodity Linux nodes running storage services. They store actual 64 MB chunk files on local disk (NVMe/SSD/HDD) and report chunk inventories to the Master.
-4. **Operation Journal (WAL):** A highly durable, replicated transaction log (e.g., using Raft/ZooKeeper consensus) that records all namespace mutations synchronously before replying to the client.
+1. **Storage Client SDK:** Handles chunk lookup requests, local caching, and file data streaming pipelines.
+2. **Master Server (Control Plane):** Central orchestrator managing the directory tree, block namespace, chunk leases, and cluster load balancing.
+3. **Chunk Servers (Data Plane):** High-performance storage servers storing binary files directly to local disks.
+4. **Operation Journal (Consensus Core):** Replicated append-only state log tracking namespace changes.
 
 ---
 
-## 4. Key Workflows & Engineering Details
+## 4. Component-Level Design
 
-### A. The Chunking and Allocation Strategy
+### A. Chunk Size Design Trade-offs
 
-Files are split into immutable, uniquely identified 64 MB chunks. The Master assigns a globally unique 64-bit Chunk Handle to each chunk during file creation.
+Choosing the chunk size determines file access latency and memory footprints:
 
-```
-File: /data/logs.txt (Size: 150 MB)
-├── Chunk 0 (64 MB) -> Handle: 0xCAFE0001 (Replicas: CS1, CS2, CS3)
-├── Chunk 1 (64 MB) -> Handle: 0xCAFE0002 (Replicas: CS2, CS3, CS4)
-└── Chunk 2 (22 MB) -> Handle: 0xCAFE0003 (Replicas: CS1, CS4, CS5)
-```
-
-#### Why a large 64 MB chunk size?
-1. **Reduces client-master interaction:** Clients can cache metadata maps and perform large sequential reads/writes on a single chunk without calling the Master repeatedly.
-2. **Reduces Metadata Size:** Allows the Master to hold all file namespace information comfortably in physical RAM.
-3. **Persistent TCP Connections:** Clients keep long-lived connections open to Chunk Servers, avoiding the overhead of connection handshakes.
+| Chunk Size | Control Plane Overhead | TCP Handshake Overhead | Internal Fragmentation | Best Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **1 MB (Small)** | Extremely High (64x more keys) | High (frequent connections) | Very Low | Small text documents, tiny logs. |
+| **64 MB (Large) ✅** | **Very Low (RAM friendly)** | **Minimal (Persistent links)**| High (for files < 64 MB) | **Default choice for massive datasets.** |
 
 ---
 
@@ -144,143 +136,98 @@ To maximize write bandwidth, data is pipelined linearly along a chain of Chunk S
              └──────────────┘
 ```
 
-#### **Execution Sequence:**
-1. **Client requests chunk locations:** Client asks the Master which Chunk Server holds the current write lease (Primary) and the locations of other replicas (Secondaries).
-2. **Client pipelines data:** Client pushes data to the *closest* Chunk Server in the replica list. That Chunk Server buffers the data in memory and pipelines it to the next closest replica.
-3. **Write Command Trigger:** Once all replicas acknowledge receipt of the buffered data, the client sends a write command to the Primary Chunk Server.
-4. **Primary Serialization:** The Primary assigns consecutive sequence numbers to writes, executes the local write, and tells the Secondaries to write data at the exact same offsets.
-5. **Acknowledge:** Secondaries reply to the Primary. The Primary then replies to the client.
-
 ---
 
-### C. Replication, Placement & Rack Awareness
+## 5. Database Schema & Namespace Strategy
 
-A major goal is surviving rack failures. Chunk replicas are distributed using a rack-aware placement policy:
-
-```
-RACK 1                             RACK 2
-┌──────────────────┐               ┌──────────────────┐
-│  [CS 1]   [CS 2] │               │  [CS 3]   [CS 4] │
-│  (Replica 1)     │               │  (Replica 2)     │
-│                  │               │  (Replica 3)     │
-└──────────────────┘               └──────────────────┘
-```
-
-* **Replica 1:** Placed on a local Chunk Server (in the same rack as the client request).
-* **Replica 2:** Placed on a different rack to protect against rack-level switch/power failure.
-* **Replica 3:** Placed on a different node within that second rack to optimize local read load distribution.
-
----
-
-## 5. Database & Namespace Schema
-
-### 1. Master Server In-Memory Metadata Structure
-
-The Master keeps the directory tree and file metadata in memory. Changes are serialized to a Transaction Journal.
-
+### 1. File Metadata Document Schema (JSON representation)
 ```json
 {
-  "/data/logs.txt": {
-    "file_id": "9f8e7d6c",
-    "size_bytes": 157286400,
-    "owner": "system",
-    "permissions": "rw-r--r--",
-    "created_at": 1784616000,
-    "chunks": [
-      {
-        "chunk_index": 0,
-        "chunk_handle": "0xCAFE0001",
-        "version": 1
-      },
-      {
-        "chunk_index": 1,
-        "chunk_handle": "0xCAFE0002",
-        "version": 1
-      }
-    ]
-  }
+  "file_path": "/data/logs.txt",
+  "owner": "admin",
+  "size_bytes": 157286400,
+  "chunks": [
+    { "index": 0, "handle": "0xCAFE0001", "version": 1 },
+    { "index": 1, "handle": "0xCAFE0002", "version": 1 }
+  ]
 }
 ```
 
-### 2. Transaction Journal Format (Append-Only Log)
-
-Every namespace change writes an entry to the transaction journal (replicated via Raft/Paxons):
-
-```json
-{"op": "CREATE_DIR", "path": "/data", "timestamp": 1784616000}
-{"op": "CREATE_FILE", "path": "/data/logs.txt", "timestamp": 1784616010}
-{"op": "ALLOCATE_CHUNK", "path": "/data/logs.txt", "chunk_handle": "0xCAFE0001", "replicas": ["10.0.1.10", "10.0.1.11", "10.0.2.10"]}
-```
+### 2. Sharding & Backup
+* **Namespace Partitioning:** Partition metadata in DynamoDB by directory prefix keys (e.g. hash partitioning on `/data/`) to scale namespace updates.
 
 ---
 
 ## 6. API Design & Payloads
 
-### 1. Open / Create File
-* **Endpoint:** `POST /api/v1/files/open`
+### 1. Allocate Chunk
+* **Endpoint:** `POST /api/v1/chunks/allocate`
 * **Payload:**
 ```json
 {
-  "path": "/data/logs.txt",
-  "mode": "write",
-  "create_if_missing": true
+  "file_path": "/data/logs.txt",
+  "chunk_index": 0
 }
 ```
-* **Response (200 OK):**
-```json
-{
-  "file_id": "9f8e7d6c",
-  "chunk_size_bytes": 67108864,
-  "file_size": 0
-}
-```
-
-### 2. Get Chunk Locations (Metadata Query)
-* **Endpoint:** `GET /api/v1/files/9f8e7d6c/chunks`
-* **Query Params:** `chunk_index=0`
 * **Response:**
 ```json
 {
   "chunk_handle": "0xCAFE0001",
-  "version": 1,
   "primary": "10.0.1.10:5001",
-  "replicas": [
-    "10.0.1.10:5001",
-    "10.0.1.11:5001",
-    "10.0.2.10:5001"
-  ]
+  "replicas": ["10.0.1.10:5001", "10.0.1.11:5001", "10.0.2.10:5001"]
 }
 ```
 
 ---
 
-## 7. AWS Cloud-Native Implementation
+## 7. End-to-End Workflow Sequence
 
-For a cloud-based implementation, commodity local disks can be backed by AWS Elastic Block Store (EBS) or Instance Store, with S3 serving as a cold storage archive.
-
-### AWS Cloud-Native Architecture Diagram
 ```mermaid
-graph TD
-    %% clients
-    Client[ECS / EKS App Clients] -->|1. Metadata Cache Lookup| Route53[Amazon Route 53]
-    Route53 --> ALB[Application Load Balancer]
-    ALB --> MasterCluster[Master Metadata Cluster ECS Fargate]
-    MasterCluster --> DynamoDB[(Amazon DynamoDB - System Registry)]
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Master as Master Metadata Node
+    participant CS1 as Primary Chunk Server
+    participant CS2 as Secondary Chunk Server
 
-    %% Storage Plane
-    Client -->|2. Direct Block Read/Write| NLB[Network Load Balancer]
-    NLB --> CS_Cluster[Chunk Server Fleet EC2 Auto Scaling]
-    CS_Cluster --> EBS[Amazon EBS / NVMe Instance Store]
-
-    %% DR / Archiving
-    CS_Cluster -.->|Async Archive| S3[(Amazon S3 Glacier)]
+    Client->>Master: Request write details for log.txt (Chunk 0)
+    Master-->>Client: Return chunk handle & replica lists (CS1, CS2)
+    Client->>CS1: Stream data block payload
+    CS1->>CS2: Pipeline data block payload
+    CS2-->>CS1: Acknowledge data write
+    CS1-->>Client: Acknowledge write transaction complete
 ```
 
-### AWS Service Mapping & Design Choices
+---
 
-| Component | AWS Service | Design Rationale |
+## 8. Scalability & Resilience Strategies
+* **Dynamic Rebalancing:** Master scans chunk server capacity metrics and moves replicas to lower-use nodes asynchronously.
+* **Block Reports:** Chunk servers periodically send block reports (inventories of local chunks) to reconcile states against the master registry.
+
+---
+
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Journal Replication:** Replicate transaction operation logs using Raft consensus groups across three active zones to guarantee zero-loss control plane state recovery.
+
+---
+
+## 10. AWS Cloud-Native Implementation
+
+### AWS Service Mapping & Rationale
+
+| Generic Component | AWS Service | Design Details & Rationale |
 | :--- | :--- | :--- |
-| **Metadata Core** | **Amazon ECS Fargate + DynamoDB** | The Master Nodes run on Fargate. File namespace registry is persisted to DynamoDB for sub-10ms transactional row updates. |
-| **Data Node Fleet** | **Amazon EC2 Auto Scaling (i3en / d3 instances)** | EC2 instances optimized for high storage throughput (equipped with local NVMe instance store) run the Chunk Server daemon. |
-| **Replication Bus** | **Amazon VPC Private Subnets** | Replication traffic routes locally within high-speed AWS VPC infrastructure. |
-| **Cold Storage** | **Amazon S3** | Inactive or archived chunks are compressed and swept into Amazon S3 cold storage classes to optimize running costs. |
+| **Master Node** | **Amazon ECS Fargate** | Coordinates lookup leases and manages cluster mappings. |
+| **Data Node Fleet** | **Amazon EC2 (i3en instances)** | High IOPS EC2 instances with local NVMe storage nodes. |
+| **Metadata Registry** | **Amazon DynamoDB** | High-throughput document index for namespace files. |
+| **Cold Storage** | **Amazon S3 Glacier** | Long-term backup snapshot vault. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. EC2 i3en Instances (NVMe Storage)
+* **Why We Use It:** Local NVMe instance stores are needed to bypass network EBS bottleneck limits when streaming gigabyte-scale datasets. Direct disk access matches HDFS/GFS performance targets.
+
+### B. Amazon DynamoDB (System Registry)
+* **Why We Use It:** Storing hierarchical file systems requires high-throughput updates on directories. DynamoDB handles scaling namespace allocations automatically with sub-10ms response targets.
