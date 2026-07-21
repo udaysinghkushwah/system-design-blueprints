@@ -21,7 +21,7 @@ This document details the production-grade system design for a high-scale **Sema
 ### Non-Functional Requirements
 * **Low Latency:** End-to-end query response time must be $< 150\text{ms}$ (P95).
 * **High Relevance (Recall/Precision):** Achieve higher Normalized Discounted Cumulative Gain (NDCG@10) compared to raw BM25 search.
-* **High Scale:** support indexes containing up to $50\text{M}+$ documents with daily update patterns.
+* **High Scale:** Support indexes containing up to $50\text{M}+$ documents with daily update patterns.
 
 ---
 
@@ -32,6 +32,10 @@ This document details the production-grade system design for a high-scale **Sema
 * **Average Document Length:** $200 \text{ words}$ (Short product details, titles, descriptions)
 * **Average Query Size:** $5 \text{ words}$
 * **Throughput (QPS):** Average $500 \text{ QPS}$, Peak $2,500 \text{ QPS}$
+* **Vector Size per Doc (768 dimensions - float32):**
+  $$768 \times 4 \text{ bytes} \approx 3 \text{ KB}$$
+* **Catalog Storage Requirement:**
+  $$10,000,000 \text{ documents} \times 3 \text{ KB} \approx 30 \text{ GB}$$
 
 ---
 
@@ -68,49 +72,36 @@ graph TD
     IndexerWorker --> SparseES
 ```
 
+### Core Components
+1. **Query Embedder:** Converts user queries into vector space using an embedding service.
+2. **Dense Vector Database:** Stores HNSW vector graphs for semantic search lookup.
+3. **Keyword Index (Elasticsearch):** Performs exact keyword (BM25) search.
+4. **Re-ranker Service:** High-precision Transformer scoring module that reorganizes candidate lists.
+
 ---
 
-## 4. Key Workflows & Engineering Details
+## 4. Component-Level Design
 
 ### A. Late Interaction vs. Single Vector Representations
 
 A key engineering trade-off is choosing the representation model:
 
-```
-Single Vector (Bi-Encoder):
-Query ──▶ [Embedding] ──▶ Single Vector (1500 dim) ──▶ Cosine Match
-* Extremely fast, low index storage overhead.
-
-Late Interaction (ColBERT):
-Query ──▶ [Multi-vector] ──▶ Matrix of vectors (vector per word token)
-          ├── Matches query tokens against doc tokens dynamically
-          └── LSE (MaxSim) operator
-* Incredible detail, but requires 10x-20x more vector storage space.
-```
-
-* **Recommended Strategy:** A two-stage pipeline using **Single Vector representation (e.g., text-embedding-3-small) + BM25** in Stage 1, followed by a **Cross-Encoder model** in Stage 2.
+| Model Type | Precision | Storage Cost | Indexing Latency | Best Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **Single Vector (Bi-Encoder) ✅** | Moderate-High | Low (600 GB for 100M) | Low | Standard web & product search. |
+| **Late Interaction (ColBERT)** | Very High | High (6 TB for 100M) | Medium-High | High-precision academic search. |
 
 ---
 
-### B. Two-Stage Search Execution
+### B. Reciprocal Rank Fusion (RRF)
 
-```
-[User Query]
-     │
-     ▼
-[Stage 1: Retrieval (Bi-Encoder + BM25)] ──▶ Scans 10M documents in parallel (ANN)
-     │
-     ▼ Returns Top-100 Candidates
-     │
-[Stage 2: Re-ranking (Cross-Encoder)]    ──▶ Joint attention scoring (MiniLM model)
-     │
-     ▼ Returns Top-10 High-Precision Results
-[User Client]
-```
+We merge dense and sparse results using the RRF algorithm to score each candidate document:
+
+$$\text{RRF\_score}(d) = \sum_{r \in \text{retrievers}} \frac{1}{60 + \text{rank}_r(d)}$$
 
 ---
 
-## 5. Database Schema & Index Design
+## 5. Database Schema & Partitioning Strategy
 
 ### 1. Elasticsearch Index Settings (Hybrid Schema)
 
@@ -139,24 +130,78 @@ Query ──▶ [Multi-vector] ──▶ Matrix of vectors (vector per word toke
 }
 ```
 
+### 2. Sharding & Scaling
+* **OpenSearch Shards:** Split catalog index into 4 primary shards mapped to separate compute nodes to distribute the search workload.
+
 ---
 
-## 6. AWS Cloud-Native Implementation
+## 6. API Design & Payloads
 
-### AWS Cloud-Native Architecture Diagram
-```mermaid
-graph TD
-    Client[Client App] --> ALB[Application Load Balancer]
-    ALB --> SearchSvc[Search Service ECS Fargate]
-    SearchSvc --> OpenSearch[(Amazon OpenSearch Service - Hybrid Engine)]
-    SearchSvc --> SageMaker[Amazon SageMaker Serverless - Re-ranker]
-    
-    %% Ingestion
-    CatalogUpdate[Catalog Ingestion] --> MSK{Amazon MSK}
-    MSK --> Indexer[Indexer Fargate]
-    Indexer --> OpenSearch
+### 1. Hybrid Search Query
+* **Endpoint:** `GET /api/v1/search`
+* **Query Params:** `q=machine+learning+tutorial&limit=10`
+* **Response:**
+```json
+{
+  "results": [
+    {
+      "doc_id": "doc_9988",
+      "title": "ML Intro Guide",
+      "score": 0.985
+    }
+  ]
+}
 ```
 
+---
+
+## 7. End-to-End Workflow Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Proxy as Search API Service
+    participant OpenSearch as OpenSearch Service
+    participant Rerank as SageMaker Rerank
+
+    User->>Proxy: GET /api/v1/search?q=query
+    Proxy->>OpenSearch: Execute Hybrid Query (Vector + BM25)
+    OpenSearch-->>Proxy: Return merged Top-50 candidates
+    Proxy->>Rerank: Send candidates for precision scoring
+    Rerank-->>Proxy: Return top-10 re-ranked results
+    Proxy-->>User: Return clean search result list
+```
+
+---
+
+## 8. Scalability & Resilience Strategies
+* **Search Read Cache:** Cache common search queries and their final top-10 outputs in Redis for 10 minutes to shield downstream OpenSearch indices.
+* **Batch Indexing:** Buffer ingestion changes in MSK Kafka before writing updates to indexing clusters.
+
+---
+
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Cross-Region Replication:** Ingest catalog logs dynamically into multiple AWS regions simultaneously, maintaining two active search instances. If a primary region fails, DNS failover redirects client traffic.
+
+---
+
+## 10. AWS Cloud-Native Implementation
+
 ### AWS Service Mapping & Rationale
-* **Amazon OpenSearch Service (with Vector Engine):** Serves both BM25 inverted index lookups and dense vector search via KNN indices. This reduces storage cost and coordination overhead by keeping dense and sparse structures in a single engine.
-* **Amazon SageMaker Serverless Inference:** Hosts the Cross-Encoder model (e.g. `bge-reranker-large`). It scales dynamically with query QPS spikes and keeps running costs low by scaling to zero during off-peak hours.
+
+| Generic Component | AWS Service | Design Details & Rationale |
+| :--- | :--- | :--- |
+| **Search Engine** | **Amazon OpenSearch Service** | Handles both vector mappings and inverted text indexes. |
+| **Re-ranker** | **Amazon SageMaker Serverless** | Deploys a Transformer model to re-score final query-candidate pairs. |
+| **Ingestion Pipeline** | **Amazon MSK (Kafka)** | Queues metadata catalogs to indexers without search interference. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. Amazon OpenSearch (Hybrid Search Engine)
+* **Why We Use It:** OpenSearch provides a production-grade inverted index for BM25 text searches and a vector engine for HNSW graph traversal. Using one tool avoids complex consistency sync loops.
+
+### B. SageMaker Serverless Inference (Reranker)
+* **Why We Use It:** Cross-encoder models are computationally expensive (require GPU or highly targeted CPU runs). SageMaker Serverless provides scaling, auto-provisioning, and zero idle cost.

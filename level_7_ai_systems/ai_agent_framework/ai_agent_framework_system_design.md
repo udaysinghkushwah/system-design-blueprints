@@ -40,13 +40,16 @@ This document details the production-grade system design for an enterprise **AI 
 
 ### Database Write/Read Throughput
 * **Average Database Writes (State Checkpoints):**
-  $$\frac{2,000,000 \text{ checkpoints}}{86,400 \text{ seconds}} \approx 23 \text{ writes/sec}$$
-  * **Peak Writes (5x):** $\approx 115 \text{ writes/sec}$
+  $$\text{Writes/sec} = \frac{2,000,000 \text{ checkpoints}}{86,400 \text{ seconds}} \approx 23 \text{ writes/sec}$$
+  * During peak execution bursts, traffic spikes up to 5x:
+  $$\text{Peak Writes/sec} \approx 23 \times 5 = 115 \text{ writes/sec}$$
 * **Average Database Reads (Loading State):** Same as writes (approx. $23\text{–}115 \text{ reads/sec}$).
 
 ### State Storage Volume (Active Checkpoints)
 * **Daily Storage Added:**
   $$2,000,000 \text{ checkpoints} \times 8 \text{ KB} = 16 \text{ GB / day}$$
+* **Annual Storage (without compression):**
+  $$16 \text{ GB/day} \times 365 \text{ days} \approx 5.84 \text{ TB / year}$$
 * **Retention Policy:** Hot active state checkpoints archived to cold storage after 30 days. Active state store size $\approx 480 \text{ GB}$.
 
 ---
@@ -81,42 +84,26 @@ graph TD
     BreakpointGate -->|Webhook / API| Approver[Human Reviewer]
 ```
 
+### Core Components
+1. **API Gateway:** Entry point that handles client requests, rate-limiting, and authentication.
+2. **Agent Orchestrator:** Resolves state transitions, handles checkpointing, and triggers actions.
+3. **State Checkpoint Store:** Manages current thread execution state variables and previous execution steps.
+4. **Memory Service:** Accesses short-term (caching) and long-term (vector DB lookup) experience stores.
+5. **Tool Execution Gateway:** Sandboxes tool triggers to prevent host vulnerabilities.
+
 ---
 
-## 4. Key Workflows & Engineering Details
+## 4. Component-Level Design
 
-### A. Stateful Agent Graph (Cyclic Workflows)
+### A. Orchestration Patterns comparison
 
-Unlike linear chains, complex agents require cyclic graphs (loops) to refine answers, correct code errors, and loop until a criteria is met.
+Choosing the right execution flow determines the agent's autonomy:
 
-```
-                  ┌──────────────┐
-                  │    START     │
-                  └──────┬───────┘
-                         ▼
-                  ┌──────────────┐
-                  │    PLAN      │
-                  └──────┬───────┘
-                         ▼
-                  ┌──────────────┐
-                  │  CALL TOOL   │◀──────────────┐
-                  └──────┬───────┘               │
-                         ▼                       │ (Invalid/Error)
-                  ┌──────────────┐      No       │
-                  │ VALIDATE?    │───────────────┘
-                  └──────┬───────┘
-                         │ Yes
-                         ▼
-                  ┌──────────────┐
-                  │     END      │
-                  └──────────────┘
-```
-
-#### State Persistence via Checkpointing
-To guarantee resilience:
-1. Every node transition (e.g., `PLAN` $\rightarrow$ `CALL TOOL`) acts as a database transaction.
-2. The orchestrator dumps the entire execution state (variables, message histories) into a **State Checkpoint Store** as a new thread revision version.
-3. If the container crashes mid-run, a replacement worker reads the latest checkpoint from the database and resumes execution from the exact transition node.
+| Pattern | Control Flow | Autonomy | Recovery Strategy | Best Use Case |
+| :--- | :--- | :--- | :--- | :--- |
+| **ReAct (Reason/Action)** | Linear loop: Plan → Tool → Observe. | Low-Medium | Restart loop step. | Single tool execution, simple lookup. |
+| **Hierarchical Supervisor** | Router agent coordinates worker sub-agents. | High | Delegate to alternative agent node. | Complex multi-domain tasks. |
+| **Cyclic State DAG (LangGraph) ✅** | State machine where nodes are tasks and edges are conditionals. | High | Resume from specific failed node. | Multi-step corporate workflows. |
 
 ---
 
@@ -142,9 +129,9 @@ Executing LLM-generated code or APIs is highly dangerous. We isolate the executi
 
 ---
 
-## 5. Database Schema & Segment Layout
+## 5. Database Schema & Partitioning Strategy
 
-### 1. `agent_threads` Table (PostgreSQL - Session Registry)
+### 1. `agent_threads` Table (PostgreSQL)
 
 ```sql
 CREATE TABLE agent_threads (
@@ -172,29 +159,99 @@ CREATE TABLE agent_checkpoints (
 CREATE INDEX idx_checkpoint_lookup ON agent_checkpoints (thread_id, version DESC);
 ```
 
+### 3. Sharding & Archiving Policy
+* **Sharding:** Partitioned by `thread_id` using consistent hashing to keep all checkpoints for an active run on a single DB shard.
+* **Archiving:** Checkpoints older than 30 days are swept from PostgreSQL to cold storage (S3 Glacier) in Parquet format.
+
 ---
 
-## 6. AWS Cloud-Native Implementation
+## 6. API Design & Payloads
 
-### AWS Cloud-Native Architecture Diagram
-```mermaid
-graph TD
-    %% Ingress
-    User[User Client] -->|Start Session| ALB[Application Load Balancer]
-    ALB --> Orch[Orchestration Engine ECS Fargate]
-
-    %% Memory & State
-    Orch --> ElastiCache[(Amazon ElastiCache for Redis)]
-    Orch --> Aurora[(Amazon Aurora PostgreSQL - Checkpoints)]
-    
-    %% Action Sandbox
-    Orch -->|Trigger Tool Async| Lambda[AWS Lambda - Sandboxed Executor]
-    
-    %% Gateway
-    Orch --> Bedrock[Amazon Bedrock LLM Gateway]
+### 1. Initialize Thread
+* **Endpoint:** `POST /api/v1/threads`
+* **Response:**
+```json
+{
+  "thread_id": "thread_uuid_12345",
+  "status": "active"
+}
 ```
 
+### 2. Run Step
+* **Endpoint:** `POST /api/v1/threads/{thread_id}/run`
+* **Payload:**
+```json
+{
+  "input": "Run analysis on logs"
+}
+```
+* **Response:**
+```json
+{
+  "node_visited": "tool_call",
+  "status": "paused_hitl"
+}
+```
+
+---
+
+## 7. End-to-End Workflow Sequence
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant Orch as Agent Orchestrator
+    participant PG as PostgreSQL Checkpoint Store
+    participant Sandbox as Execution Sandbox (Lambda)
+    participant LLM as LLM API
+
+    User->>Orch: Start execution thread
+    Orch->>PG: Create initial state checkpoint
+    Orch->>LLM: Get next step planning decision
+    LLM-->>Orch: Action required (Execute python code)
+    Orch->>Sandbox: Execute code payload
+    Sandbox-->>Orch: Tool stdout result
+    Orch->>PG: Commit node state version checkpoint
+    Orch-->>User: Run update step notification
+```
+
+---
+
+## 8. Scalability & Resilience Strategies
+* **State Checkpoint Compaction:** Instead of storing complete message chains repeatedly in every version payload, we store delta changes and rebuild the full state using event-sourcing aggregation on read.
+* **Singleflight Execution Guard:** Prevents race conditions where a client submits twin run commands to the same thread concurrently. Uses Redis distributed locks (`SET thread:lock <uuid> NX EX 10`).
+
+---
+
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Active-Passive DB Replication:** Replicates the PostgreSQL `agent_checkpoints` database to a secondary DR region asynchronously with $< 1\text{s}$ replication lag.
+* **Idempotency Keys:** Every tool execution and graph state transition is bound to an idempotency token to prevent double-execution of real-world API requests during a gateway failover.
+
+---
+
+## 10. AWS Cloud-Native Implementation
+
 ### AWS Service Mapping & Rationale
-* **AWS Lambda (Sandboxed Execution):** Each tool run executes inside a highly ephemeral, isolated Lambda container configured with strict memory quotas (128-512MB) and network VPC egress filters.
-* **Amazon Aurora PostgreSQL:** Stores the thread execution state and historic checkpoints. Uses JSONB fields for unstructured state payloads.
-* **Amazon ElastiCache (Redis):** Handles active hot-thread caching and atomic graph locks.
+
+| Generic Component | AWS Service | Design Details & Rationale |
+| :--- | :--- | :--- |
+| **API Gateway** | **Amazon API Gateway** | Manages client verification and request throttle limits. |
+| **State Registry** | **Amazon Aurora PostgreSQL** | Persists states. Utilizes Global Database for multi-region backup. |
+| **Tool Sandbox** | **AWS Lambda** | Isolated serverless tool execution inside ephemeral containers with strict VPC boundary rules. |
+| **Memory Cache** | **Amazon ElastiCache for Redis** | Handles sliding window context buffers and active execution lock states. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. PostgreSQL (State Store)
+* **Why We Use It:** Checkpoint consistency is vital. If the state store is eventually consistent, duplicate transitions could occur. PostgreSQL provides strict ACID locks.
+* **Key Features Utilized:**
+  * JSONB format indexing to query dynamic nested variables.
+  * Multi-AZ replica failover.
+
+### B. AWS Lambda (Tool Execution Sandbox)
+* **Why We Use It:** Avoids hosting heavy Kubernetes worker pods for ephemeral scripting. Lambda provides VM isolation at the microsecond scale.
+* **Key Features Utilized:**
+  * Firecracker micro-VM container technology for secure sandbox isolation.

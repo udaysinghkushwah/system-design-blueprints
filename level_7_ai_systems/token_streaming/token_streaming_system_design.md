@@ -34,7 +34,7 @@ This document details the production-grade system design for a high-concurrency 
   $$100,000 \text{ streams} \times 40 \text{ tokens/sec} = 4,000,000 \text{ token updates/sec}$$
 * **Network Egress Bandwidth Needed:**
   $$4,000,000 \text{ updates/sec} \times 150 \text{ bytes} = 600 \text{ MB/s} \approx 4.8 \text{ Gbps}$$
-  This requires a distributed tier of connection gateways scaled horizontally across high-bandwidth networks.
+  *This requires a distributed tier of connection gateways scaled horizontally across high-bandwidth networks.*
 
 ---
 
@@ -65,21 +65,25 @@ graph TD
     Gateway -.->|6. Cancel GPU Job| GPUPool
 ```
 
+### Core Components
+1. **Application Load Balancer (ALB):** Manages long-lived HTTP/2 TCP streams.
+2. **SSE Connection Gateways:** High-concurrency Go/Rust handlers using Epoll to track active SSE connections.
+3. **Inference Queue (Redis/Kafka):** Decouples request batches from active model runner nodes.
+4. **GPU Inference Pool:** High-throughput cluster hosts Triton/vLLM engines.
+
 ---
 
-## 4. Key Workflows & Engineering Details
+## 4. Component-Level Design
 
-### A. Protocol Selection: SSE vs. WebSockets vs. gRPC
+### A. Protocol Comparison
 
-Choosing the client-facing transport protocol:
+Choosing the right client transport format determines connection scalability:
 
-| Protocol | Protocol Overhead | Unidirectional / Bidirectional | Browser Native | Auto-Reconnect |
+| Protocol | Overhead | Bidirectional Support | Browser Compatibility | Best Use Case |
 | :--- | :--- | :--- | :--- | :--- |
-| **WebSockets** | High (Custom frame parsing) | Bidirectional (Full duplex) | Yes | No (requires custom wrapper) |
-| **gRPC-Web** | Medium (Requires Envoy translation) | Bidirectional | No | No |
-| **Server-Sent Events (SSE) ✅**| **Low (Text-based chunked streams)** | **Unidirectional (Server-to-client)**| **Yes (EventSource API)**| **Yes (Native browser support)** |
-
-* **Why SSE Wins for LLM Delivery:** LLM generation is strictly unidirectional (the client submits a query once, then the server streams output for seconds or minutes). SSE runs natively over standard HTTP/2, bypassing proxy blocking issues, and handles reconnections automatically.
+| **WebSockets** | High | Yes | Native | Chat applications with heavy user inputs. |
+| **Server-Sent Events (SSE) ✅**| **Low** | **No (Server-to-client only)**| **Native** | **Standard LLM streaming outputs.** |
+| **gRPC-Web** | Medium | Yes | Requires proxy setup | Internal platform microservices. |
 
 ---
 
@@ -91,57 +95,92 @@ Standard thread-per-connection models (like traditional Apache or basic Java thr
 
 ---
 
-### C. Backpressure Handling
+## 5. Database Schema & State Strategy
 
-If a client's network link is slow, the client cannot read TCP packets as fast as the GPU generates tokens.
+### 1. Active Stream State (In-Memory Redis Hash)
 
 ```
-[vLLM Engine] ──▶ generates 40 tokens/s ──▶ [In-Memory Channel Buffer (Ring Buffer)]
-                                                       │
-                                                       ├──▶ Client Reads Fast: Stream continues
-                                                       └──▶ Client Reads Slow: Buffer fills up
-                                                                     │
-                                                                     ▼
-                                                      Drop older tokens / Pause GPU stream 
-                                                      generation for that worker thread
+Key: active_stream:{session_id}
+Fields:
+  - client_ip: "102.15.22.1"
+  - gateway_node_id: "gateway-pod-12"
+  - tokens_sent: 142
+  - started_at: 1784616000
 ```
 
-1. **Ring Buffer per Stream:** Each connection gateway maintains an in-memory ring buffer (e.g., 50 token slots).
-2. **Buffer Overflow Strategy:** If the buffer fills, the gateway sends a pause signal back to the inference coordinator, letting the GPU release memory or prioritize other tasks.
+### 2. Sharding & Cache Tuning
+* **Redis Pub/Sub Channels:** Message channels are sharded across a Redis Cluster according to `session_id` hash slots, ensuring single-node pub/sub broker load stays under 50k events/sec.
 
 ---
 
-## 5. Database Schema & API Payload
+## 6. API Design & Payloads
 
-### 1. Unified Event Stream Payloads (SSE Packets)
-
+### 1. HTTP Server-Sent Event Streams
+* **Endpoint:** `POST /api/v1/chat/stream`
+* **Response Headers:**
 ```
-data: {"type": "content", "token": "hello", "index": 0}
-
-data: {"type": "content", "token": " world", "index": 1}
-
-data: {"type": "metadata", "citations": [{"index": 1, "url": "https://company.wiki"}]}
-
-data: {"type": "usage", "prompt_tokens": 12, "completion_tokens": 2, "cost_usd": 0.0003}
-
+Content-Type: text/event-stream
+Cache-Control: no-cache
+Connection: keep-alive
+```
+* **Payload Packets:**
+```
+data: {"token": "The", "index": 0}
+data: {"token": " quick", "index": 1}
 data: [DONE]
 ```
 
 ---
 
-## 6. AWS Cloud-Native Implementation
+## 7. End-to-End Workflow Sequence
 
-### AWS Cloud-Native Architecture Diagram
 ```mermaid
-graph TD
-    Client[Client App] --> Route53[Amazon Route 53]
-    Route53 --> NLB[Network Load Balancer]
-    NLB --> Gateways[EKS Connection Gateway Pods]
-    Gateways --> Redis[(Amazon ElastiCache for Redis - Pub/Sub)]
-    EKS_GPU[EKS GPU Inference Pods] --> Redis
+sequenceDiagram
+    autonumber
+    actor Client
+    participant Gateway as SSE Gateway Node
+    participant Broker as Redis Pub/Sub
+    participant GPU as Triton GPU Server
+
+    Client->>Gateway: POST /stream (Prompt payload)
+    Gateway->>GPU: Push prompt request to execution pool
+    GPU->>Broker: PUBLISH session_123 "Next token bytes"
+    Broker-->>Gateway: Forward token frame event
+    Gateway-->>Client: HTTP write stream chunk packet
+    GPU->>Broker: PUBLISH session_123 "[DONE]"
+    Broker-->>Gateway: Forward termination signal
+    Gateway-->>Client: HTTP write stream end frame & close connection
 ```
 
+---
+
+## 8. Scalability & Resilience Strategies
+* **Client Backpressure Handling:** Use bounded ring buffers (size 50 frames) for every active connection. If a slow network client falls behind, pause token consumption from Redis Pub/Sub for that thread.
+* **Graceful Egress Sharding:** Scale gateway nodes behind a TCP Network Load Balancer (NLB) using round-robin routing.
+
+---
+
+## 9. Disaster Recovery & Multi-Region Failover Strategy
+* **Anycast Global IP Failover:** Route streaming endpoints through Route 53 latency zones. If an AWS region drops, client SDKs immediately reconnect to active gateway endpoints in secondary regions.
+
+---
+
+## 10. AWS Cloud-Native Implementation
+
 ### AWS Service Mapping & Rationale
-* **Network Load Balancer (NLB):** Essential for maintaining hundreds of thousands of long-lived, high-throughput TCP connections. Application Load Balancers (ALBs) are prone to keep-alive limits at this scale.
-* **Amazon EKS (EC2 C6g / C6i instances):** Runs the connection gateways. High CPU/Network bandwidth optimized nodes.
-* **Amazon ElastiCache (Redis):** Pub/Sub model decouples GPU inference engines (which generate tokens) from the connection pods.
+
+| Generic Component | AWS Service | Design Details & Rationale |
+| :--- | :--- | :--- |
+| **Load Balancer** | **Network Load Balancer (NLB)** | Handles millions of long-lived TCP sockets without the timeout limits of ALB. |
+| **Gateway Nodes** | **Amazon EKS (EC2 C6g pods)** | Runs low-latency Go-epoll connection daemons. |
+| **Decoupling Bus** | **Amazon ElastiCache for Redis** | High-performance Pub/Sub channel cluster. |
+
+---
+
+## 11. Technology Justification: Why We Use
+
+### A. Network Load Balancer (NLB)
+* **Why We Use It:** Streaming models need to bypass HTTP timeouts. ALB terminates TCP sessions and enforces a hard idle timeout (max 4000s, default 60s). NLB passes raw TCP packets directly to the EKS pods, allowing long streams to persist indefinitely.
+
+### B. Redis (Pub/Sub Event Broker)
+* **Why We Use It:** Decoupling inference GPU engines from proxy pods is necessary. If the GPU wrote directly to the proxy gateway container, proxy scaling shifts would break the network target pathways. Redis Pub/Sub bridges this dynamically.
