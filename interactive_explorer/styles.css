@@ -305,7 +305,7 @@ svg {
 }
 
 .interactive-node:hover {
-    filter: brightness(1.25) drop-shadow(0px 0px 8px rgba(59, 130, 246, 0.3));
+    filter: drop-shadow(0px 0px 10px rgba(255, 255, 255, 0.25)) brightness(1.2);
 }
 
 .interactive-node.selected {
@@ -316,7 +316,8 @@ svg {
 .data-flow-line {
     stroke-dasharray: 8, 8;
     animation: flow 20s linear infinite;
-    stroke-width: 2.5;
+    stroke-width: 3.5;
+    filter: url(#neon-glow);
 }
 
 @keyframes flow {

@@ -1868,13 +1868,32 @@ function renderSVG() {
                 <text x="70" y="30" font-family="Outfit" font-size="11" fill="#ab47bc" font-weight="700" text-anchor="middle">Cognito JWT</text>
             </g>
 
-            <!-- Downstream Target -->
+            <!-- Target Pods -->
             <g class="interactive-node" id="target" transform="translate(680, 210)">
                 <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
                 <text x="40" y="45" font-family="Outfit" font-size="12" fill="#10b981" font-weight="700" text-anchor="middle">Target Pods</text>
             </g>
         </svg>`;
     }
+
+    // Inject premium dark grid background and neon glow filters dynamically
+    const gridAndFilters = `
+        <defs>
+            <pattern id="blueprint-grid" width="20" height="20" patternUnits="userSpaceOnUse">
+                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(255, 255, 255, 0.025)" stroke-width="1" />
+            </pattern>
+            <filter id="neon-glow" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="5" result="blur" />
+                <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+        <!-- Background grid block -->
+        <rect width="100%" height="100%" fill="url(#blueprint-grid)" rx="15" />
+    `;
+    svgContent = svgContent.replace(/<svg ([^>]+)>/, `<svg $1>${gridAndFilters}`);
 
     canvasContainer.innerHTML = svgContent;
     setupInteractionListeners();
