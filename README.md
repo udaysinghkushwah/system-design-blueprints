@@ -33,6 +33,7 @@ We have built a premium, interactive web dashboard to explore the AWS Cloud-Nati
   - [🌐 LLM Gateway System Design](#9-llm-gateway-system-design)
   - [🔍 Semantic Search System Design](#10-semantic-search-system-design)
   - [⚡ Token Streaming System Design](#11-token-streaming-system-design)
+  - [🌐 API Gateway System Design](#12-api-gateway-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -151,7 +152,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 1 | Distributed Cache | ⬜ Planned |
 | 2 | Distributed Lock | ⬜ Planned |
 | 3 | Distributed Queue | ⬜ Planned |
-| 4 | API Gateway | ⬜ Planned |
+| 4 | API Gateway | ✅ [Blueprint](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md) |
 | 5 | Service Discovery | ⬜ Planned |
 | 6 | Rate Limiter | ⬜ Planned |
 | 7 | Circuit Breaker | ⬜ Planned |
@@ -276,7 +277,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
-| 8 | Distributed Systems | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
+| 8 | Distributed Systems | 10 | 1 | ✅⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 11 | Financial Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -285,7 +286,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **11** | **10.1%** |
+| | **Total** | **108** | **12** | **11.1%** |
 
 ---
 
@@ -594,6 +595,31 @@ Visual overview showing high-throughput NLB, Epoll connection gateways, and deco
 AWS cloud-native deployment using NLB, EKS connection gateway pods, ElastiCache Redis Pub/Sub, and EKS GPU inference servers.
 
 ![AWS Cloud-Native Token Streaming Engine](./level_7_ai_systems/token_streaming/token_streaming_aws_architecture.png)
+
+---
+
+### 12. API Gateway System Design
+A high-performance event-driven edge routing gateway engineered to handle 100,000+ RPS. Manages SSL termination, JWT auth validation, sliding-window rate limiting, path rewrites, dynamic service routing, and telemetry logging.
+
+* **Documentation:** [API Gateway System Design (api_gateway_system_design.md)](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md)
+
+#### API Gateway Tech Stack Details (with AWS Service Mapping)
+* **Amazon ECS Fargate (Envoy Proxy):** Deploys non-blocking event-loop task groups executing the filter chains.
+* **Amazon Cognito:** Edge user authentication and token verification provider.
+* **Amazon ElastiCache for Redis:** Records sliding-window sorted sets for precise rate-limit metrics.
+* **Amazon DynamoDB:** Stores active configuration rules, dynamic routes, and tenant security maps.
+
+#### API Gateway Architecture Diagrams
+
+##### A. High-Level System Architecture & Filter Chain Pipeline
+Visual layout illustrating the Linux epoll connection events listener, CPU core worker loops, and sequential filter pipeline checks.
+
+![API Gateway Architecture](./level_8_distributed_systems/api_gateway/api_gateway_system_architecture.png)
+
+##### B. AWS Cloud-Native API Gateway Ingress Engine
+Cloud-native layout showing traffic passing through WAF, NLB layers, ECS Envoy task arrays, authentication, caching tiers, and downstream service routing targets.
+
+![AWS Cloud-Native API Gateway Architecture](./level_8_distributed_systems/api_gateway/api_gateway_aws_architecture.png)
 
 ---
 

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive System Design Architecture Explorer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand">
+                <span class="logo-dot"></span>
+                <h2>Blueprint Explorer</h2>
+            </div>
+            <nav class="system-list">
+                <button class="nav-item active" data-system="llm_gateway">
+                    <span class="nav-icon">🌐</span>
+                    <span class="nav-label">LLM Gateway</span>
+                </button>
+                <button class="nav-item" data-system="semantic_search">
+                    <span class="nav-icon">🔍</span>
+                    <span class="nav-label">Semantic Search</span>
+                </button>
+                <button class="nav-item" data-system="token_streaming">
+                    <span class="nav-icon">⚡</span>
+                    <span class="nav-label">Token Streaming</span>
+                </button>
+                <button class="nav-item" data-system="vector_database">
+                    <span class="nav-icon">💾</span>
+                    <span class="nav-label">Vector Database</span>
+                </button>
+                <button class="nav-item" data-system="api_gateway">
+                    <span class="nav-icon">🚪</span>
+                    <span class="nav-label">API Gateway</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="simulate-btn" class="btn primary-btn">Simulate Query Flow</button>
+            </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="main-content">
+            <header class="workspace-header">
+                <div class="title-area">
+                    <h1 id="system-title">LLM Gateway Pipeline</h1>
+                    <p id="system-description" class="subtitle">High-throughput proxy layer routing, auditing, and rate-limiting upstream LLM model transactions.</p>
+                </div>
+                <div class="status-indicator">
+                    <span class="pulse-dot"></span>
+                    <span class="status-text">Simulating Active Traffic</span>
+                </div>
+            </header>
+
+            <div class="workspace-grid">
+                <!-- Architecture Diagram Stage -->
+                <section class="diagram-card glass-panel">
+                    <div class="card-header">
+                        <h3>Interactive AWS Architecture Flow</h3>
+                        <span class="hint-text">Click on any node to view configuration & payload logs</span>
+                    </div>
+                    <div class="canvas-container" id="canvas-container">
+                        <!-- SVGs are dynamically loaded here -->
+                    </div>
+                </section>
+
+                <!-- Inspector Panel (Side) -->
+                <section class="inspector-card glass-panel" id="inspector">
+                    <div class="card-header border-bottom">
+                        <div class="node-meta">
+                            <span class="node-category" id="ins-category">Networking</span>
+                            <h3 id="ins-title">AWS Application Load Balancer</h3>
+                        </div>
+                    </div>
+                    
+                    <div class="inspector-body">
+                        <div class="info-section">
+                            <h4>Service Overview</h4>
+                            <p id="ins-description">Accepts incoming HTTP/2 client connections, authenticates requests against custom rules, and load balances across ECS container groups.</p>
+                        </div>
+
+                        <div class="tabs">
+                            <button class="tab-btn active" data-tab="payload">Payload & Mappings</button>
+                            <button class="tab-btn" data-tab="config">AWS Config / Code</button>
+                        </div>
+
+                        <div class="tab-content" id="tab-payload">
+                            <div class="code-wrapper">
+                                <pre><code id="ins-payload" class="language-json">{
+  "status": "ready"
+}</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden" id="tab-config">
+                            <div class="code-wrapper">
+                                <pre><code id="ins-config" class="language-terraform"># Resource Configuration</code></pre>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>

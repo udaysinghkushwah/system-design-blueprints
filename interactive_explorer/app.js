@@ -337,6 +337,78 @@ PUBLISH channel:stream:sess_1122 '{"token": " learning", "idx": 15}'`,
 }`
             }
         }
+    },
+    api_gateway: {
+        title: "API Gateway Engine",
+        description: "High-performance edge reverse proxy routing, auditing, and rate-limiting general client HTTP requests.",
+        nodes: {
+            "ingress": {
+                name: "Network Load Balancer (NLB)",
+                category: "Networking",
+                description: "VPC Ingress router. Maps ingress TCP connections directly to Envoy proxy tasks.",
+                payload: `{
+  "client_ip": "198.51.100.12",
+  "protocol": "HTTP/2",
+  "tls_version": "TLSv1.3"
+}`,
+                config: `resource "aws_lb" "api_nlb" {
+  name               = "api-gateway-nlb"
+  load_balancer_type = "network"
+}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Envoy Proxy Worker)",
+                category: "Compute Proxy",
+                description: "Envoy-based reverse proxy container nodes executing the filter validation chain.",
+                payload: `{
+  "route_matched": "orders_route",
+  "filter_chain_status": "processing",
+  "request_id": "req-99ab88"
+}`,
+                config: `resource "aws_ecs_service" "proxy_envoy" {
+  name            = "envoy-gateway-proxy"
+  desired_count   = 5
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Cache",
+                category: "Database & Cache",
+                description: "Stores rate-limiting keys using Sorted Sets (ZSET) to validate sliding window counts.",
+                payload: `ZRANGE rate:limit:user_123:orders 0 -1 WITHSCORES
+1) "req_uuid_1"
+2) "1784616010"`,
+                config: `resource "aws_elasticache_cluster" "limit_store" {
+  cluster_id           = "rate-limit-cache"
+  node_type            = "cache.t4g.medium"
+  num_cache_nodes      = 2
+}`
+            },
+            "db": {
+                name: "Amazon DynamoDB Config",
+                category: "Database & Config",
+                description: "Durable route mappings database. Rules are synchronized to Fargate proxy memory cache segments.",
+                payload: `{
+  "route_id": "orders_route",
+  "path_pattern": "/api/v1/orders/**",
+  "target_service": "orders_service"
+}`,
+                config: `resource "aws_dynamodb_table" "route_definitions" {
+  name     = "api_gateway_routes"
+  hash_key = "route_id"
+}`
+            },
+            "s3": {
+                name: "Cognito User Pool Auth",
+                category: "Authentication Security",
+                description: "Validates JWT access tokens at the network boundary edge before routing to internal pods.",
+                payload: `{
+  "iss": "https://cognito-idp.us-east-1.amazonaws.com/us-east-1_xxxx",
+  "sub": "user_123",
+  "token_use": "access"
+}`,
+                config: `# Cognito Authentication Validator integration config`
+            }
+        }
     }
 };
 
@@ -597,6 +669,65 @@ function renderSVG() {
                 <text x="70" y="30" font-family="Outfit" font-size="11" fill="#009688" font-weight="700" text-anchor="middle">Amazon S3</text>
             </g>
         </svg>`;
+    } else if (currentSystem === "api_gateway") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- VPC Box -->
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC Core Range</text>
+
+            <!-- Connections -->
+            <path d="M120 250 L 200 250" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 220 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 280 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M270 300 L 270 350" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 250 L 680 250" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <!-- Neon Flow Lines -->
+            <path class="data-flow-line" d="M120 250 L 200 250" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 220 L 420 170" stroke="#ef5350" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 280 L 420 330" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M270 300 L 270 350" stroke="#a855f7" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 250 L 680 250" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <!-- Ingress: NLB -->
+            <g class="interactive-node" id="ingress" transform="translate(40, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="45" font-family="Outfit" font-size="13" fill="#ff9800" font-weight="700" text-anchor="middle">NLB</text>
+            </g>
+
+            <!-- ECS Envoy Proxy -->
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="40" font-family="Outfit" font-size="12" fill="#3b82f6" font-weight="700" text-anchor="middle">ECS Envoy</text>
+                <text x="70" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Proxy Worker</text>
+            </g>
+
+            <!-- Redis Cache -->
+            <g class="interactive-node" id="redis" transform="translate(420, 120)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#ef5350" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#ef5350" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Sliding Limit Logs</text>
+            </g>
+
+            <!-- DynamoDB config registry -->
+            <g class="interactive-node" id="db" transform="translate(420, 280)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#ab47bc" font-weight="700" text-anchor="middle">DynamoDB Rules</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Route Registries</text>
+            </g>
+
+            <!-- Cognito Auth -->
+            <g class="interactive-node" id="s3" transform="translate(200, 350)">
+                <rect x="0" y="0" width="140" height="50" rx="8" fill="#111827" stroke="#ab47bc" stroke-width="1.5" />
+                <text x="70" y="30" font-family="Outfit" font-size="11" fill="#ab47bc" font-weight="700" text-anchor="middle">Cognito JWT</text>
+            </g>
+
+            <g class="interactive-node" id="target" transform="translate(680, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="40" y="45" font-family="Outfit" font-size="12" fill="#10b981" font-weight="700" text-anchor="middle">Target Pods</text>
+            </g>
+        </svg>`;
     }
 
     canvasContainer.innerHTML = svgContent;
@@ -672,6 +803,10 @@ document.querySelectorAll(".nav-item").forEach(btn => {
             activeNode = "ingress";
             systemTitle.innerText = "Distributed Vector Database";
             systemDescription.innerText = "Low-latency LSM-like segment space vector database. Optimizes HNSW index graphs using scalar quantization.";
+        } else if (currentSystem === "api_gateway") {
+            activeNode = "ingress";
+            systemTitle.innerText = "API Gateway Ingress Engine";
+            systemDescription.innerText = "High-performance edge reverse proxy routing, auditing, and rate-limiting general client HTTP requests.";
         }
 
         renderSVG();
