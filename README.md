@@ -27,14 +27,15 @@ We have built a premium, interactive web dashboard to explore the AWS Cloud-Nati
   - [🗄️ Distributed File Storage System Design](#3-distributed-file-storage-system-design)
   - [🍔 Food Delivery System Design](#4-food-delivery-system-design)
   - [📂 Dropbox System Design](#5-dropbox-system-design)
-  - [🧠 RAG Pipeline System Design](#6-rag-pipeline-system-design)
-  - [💾 Vector Database System Design](#7-vector-database-system-design)
-  - [🤖 ChatGPT System Design](#8-chatgpt-system-design)
-  - [🤖 AI Agent Framework System Design](#9-ai-agent-framework-system-design)
-  - [🌐 LLM Gateway System Design](#10-llm-gateway-system-design)
-  - [🔍 Semantic Search System Design](#11-semantic-search-system-design)
-  - [⚡ Token Streaming System Design](#12-token-streaming-system-design)
-  - [🌐 API Gateway System Design](#13-api-gateway-system-design)
+  - [🅿️ Smart Parking Lot System Design](#6-smart-parking-lot-system-design)
+  - [🧠 RAG Pipeline System Design](#7-rag-pipeline-system-design)
+  - [💾 Vector Database System Design](#8-vector-database-system-design)
+  - [🤖 ChatGPT System Design](#9-chatgpt-system-design)
+  - [🤖 AI Agent Framework System Design](#10-ai-agent-framework-system-design)
+  - [🌐 LLM Gateway System Design](#11-llm-gateway-system-design)
+  - [🔍 Semantic Search System Design](#12-semantic-search-system-design)
+  - [⚡ Token Streaming System Design](#13-token-streaming-system-design)
+  - [🌐 API Gateway System Design](#14-api-gateway-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -55,7 +56,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 2 | Design Pastebin | ✅ [Blueprint](./level_1_core_system_design/pastebin/pastebin_system_design.md) |
 | 3 | Design File Storage System | ✅ [Blueprint](./level_1_core_system_design/file_storage/file_storage_system_design.md) |
 | 4 | Design Dropbox | ✅ [Blueprint](./level_1_core_system_design/dropbox/dropbox_system_design.md) |
-| 5 | Design Parking Lot | ⬜ Planned |
+| 5 | Design Parking Lot | ✅ [Blueprint](./level_1_core_system_design/parking_lot/parking_lot_system_design.md) |
 | 6 | Design Library Management System | ⬜ Planned |
 | 7 | Design ATM System | ⬜ Planned |
 | 8 | Design Elevator System | ⬜ Planned |
@@ -271,7 +272,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 4 | ✅✅✅✅⬜⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 5 | ✅✅✅✅✅⬜⬜⬜⬜ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -287,7 +288,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **13** | **12.0%** |
+| | **Total** | **108** | **14** | **13.0%** |
 
 ---
 
@@ -646,6 +647,32 @@ Visual layout showing Client Rabin fingerprint chunk pipelines, metadata, block 
 Cloud-native deployment showing public NLB gates, private VPC tiers, ECS pods, storage buckets, SQS queues, and WebSocket connection brokers.
 
 ![AWS Cloud-Native Dropbox Architecture](./level_1_core_system_design/dropbox/dropbox_aws_architecture.png)
+
+---
+
+### 14. Smart Parking Lot System Design
+A production-grade, IoT-enabled Smart Parking System. Covers real-time bay sensor status MQTT routing, lock-free closest available spot allocations using optimistic concurrency versions, Automatic License Plate Recognition (ALPR) entry/exit gates, and payment gateway integration.
+
+* **Documentation:** [Smart Parking Lot System Design (parking_lot_system_design.md)](./level_1_core_system_design/parking_lot/parking_lot_system_design.md)
+
+#### Smart Parking Lot Tech Stack Details (with AWS Service Mapping)
+* **AWS IoT Core:** Directs lightweight MQTT state updates from bay sensors.
+* **AWS Lambda:** Processes raw sensor signals and updates Redis geospatial availability caches.
+* **Amazon ECS Fargate:** Hosts the Rest API routing spot allocations for entry/exit gates.
+* **Amazon ElastiCache for Redis:** Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups.
+* **Amazon Aurora PostgreSQL:** Implements ticket ledgers and invoice bookings under optimistic transaction checks.
+
+#### Smart Parking Lot Architecture Diagrams
+
+##### A. High-Level System Architecture & Sensor Ingestion Flow
+Visual layout detailing Ultrasonic sensors, MQTT event streams, ALPR gates, Spot Allocation Engine, and WebSocket live maps updates.
+
+![Smart Parking Lot System Architecture](./level_1_core_system_design/parking_lot/parking_lot_system_architecture.png)
+
+##### B. AWS Cloud-Native Smart Parking Architecture
+Cloud-native layout showing edge gate ALPR cameras, AWS IoT Core, ECS Fargate allocation handlers, Lambda workers, Redis geohash caches, and DynamoDB/Aurora ticketing registries.
+
+![AWS Cloud-Native Smart Parking Architecture](./level_1_core_system_design/parking_lot/parking_lot_aws_architecture.png)
 
 ---
 
