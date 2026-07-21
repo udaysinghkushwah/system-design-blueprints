@@ -12,8 +12,9 @@
 - [🗺️ System Design Roadmap](#️-system-design-roadmap)
 - [📂 Completed Blueprints](#-completed-blueprints)
   - [🔗 URL Shortener System Design](#1-url-shortener-system-design)
-  - [🍔 Food Delivery System Design](#2-food-delivery-system-design)
-  - [🤖 ChatGPT System Design](#3-chatgpt-system-design)
+  - [📋 Pastebin System Design](#2-pastebin-system-design)
+  - [🍔 Food Delivery System Design](#3-food-delivery-system-design)
+  - [🤖 ChatGPT System Design](#4-chatgpt-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -31,7 +32,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | # | Topic | Status |
 |---|-------|--------|
 | 1 | Design a URL Shortener | ✅ [Blueprint](./url_shortener_sd/url_shortener_system_design.md) |
-| 2 | Design Pastebin | ⬜ Planned |
+| 2 | Design Pastebin | ✅ [Blueprint](./pastebin_sd/pastebin_system_design.md) |
 | 3 | Design File Storage System | ⬜ Planned |
 | 4 | Design Dropbox | ⬜ Planned |
 | 5 | Design Parking Lot | ⬜ Planned |
@@ -250,7 +251,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 1 | ✅⬜⬜⬜⬜⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 2 | ✅✅⬜⬜⬜⬜⬜⬜⬜ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -266,7 +267,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **3** | **2.8%** |
+| | **Total** | **108** | **4** | **3.7%** |
 
 ---
 
@@ -298,7 +299,33 @@ Visual flow showing the 3-layer caching strategy (CDN → Redis → PostgreSQL) 
 
 ---
 
-### 2. Food Delivery System Design
+### 2. Pastebin System Design
+A production-grade system design for a high-scale text sharing platform like **Pastebin** or **GitHub Gist**. Covers metadata/content separation (PostgreSQL + S3), multi-layer caching with syntax highlighting, content compression, expiration policies, and content moderation.
+
+* **Documentation:** [Pastebin System Design (pastebin_system_design.md)](./pastebin_sd/pastebin_system_design.md)
+
+#### Pastebin Tech Stack Details (with AWS Service Mapping)
+* **Amazon S3 (Content Store):** Stores compressed paste content (zstd) with 11 nines durability. S3 Intelligent-Tiering auto-moves old pastes to cheaper storage. Cross-Region Replication ensures DR readiness.
+* **PostgreSQL (Amazon Aurora PostgreSQL):** Stores lean paste metadata (~200 bytes/record). Partial indexes optimize expiration cleanup and public paste discovery queries.
+* **Redis (Amazon ElastiCache for Redis):** Three-tier cache storing metadata hashes, compressed content blobs, and pre-rendered syntax-highlighted HTML. Cluster mode provides horizontal scaling.
+* **Elasticsearch (Amazon OpenSearch Service):** Full-text search over public paste titles and content snippets for paste discovery and trending features.
+* **Apache Kafka (Amazon MSK):** Decouples the read/write paths from async tasks — content moderation scanning and view analytics processing.
+
+#### Pastebin Architecture Diagrams
+
+##### A. High-Level System Architecture
+Overview of clients, CDN, gateway, core services (Read, Write, KGS, Search), data layer (Redis, PostgreSQL, S3), and analytics pipeline.
+
+![Pastebin System Architecture](./pastebin_sd/pastebin_system_architecture.png)
+
+##### B. Paste Retrieval — Multi-Layer Cache & Content Assembly
+Visual flow showing the 3-layer cache strategy (CDN → Redis → PostgreSQL + S3 parallel fetch) with content assembly and syntax highlighting.
+
+![Pastebin Read Path](./pastebin_sd/pastebin_read_path.png)
+
+---
+
+### 3. Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
 * **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./food_delivery_sd/food_delivery_system_design.md)
@@ -347,7 +374,7 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 
 ---
 
-### 3. ChatGPT System Design
+### 4. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt_sd/chatgpt_system_design.md)
