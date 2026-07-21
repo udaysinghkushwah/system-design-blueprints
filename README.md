@@ -26,14 +26,15 @@ We have built a premium, interactive web dashboard to explore the AWS Cloud-Nati
   - [📋 Pastebin System Design](#2-pastebin-system-design)
   - [🗄️ Distributed File Storage System Design](#3-distributed-file-storage-system-design)
   - [🍔 Food Delivery System Design](#4-food-delivery-system-design)
-  - [🧠 RAG Pipeline System Design](#5-rag-pipeline-system-design)
-  - [💾 Vector Database System Design](#6-vector-database-system-design)
-  - [🤖 ChatGPT System Design](#7-chatgpt-system-design)
-  - [🤖 AI Agent Framework System Design](#8-ai-agent-framework-system-design)
-  - [🌐 LLM Gateway System Design](#9-llm-gateway-system-design)
-  - [🔍 Semantic Search System Design](#10-semantic-search-system-design)
-  - [⚡ Token Streaming System Design](#11-token-streaming-system-design)
-  - [🌐 API Gateway System Design](#12-api-gateway-system-design)
+  - [📂 Dropbox System Design](#5-dropbox-system-design)
+  - [🧠 RAG Pipeline System Design](#6-rag-pipeline-system-design)
+  - [💾 Vector Database System Design](#7-vector-database-system-design)
+  - [🤖 ChatGPT System Design](#8-chatgpt-system-design)
+  - [🤖 AI Agent Framework System Design](#9-ai-agent-framework-system-design)
+  - [🌐 LLM Gateway System Design](#10-llm-gateway-system-design)
+  - [🔍 Semantic Search System Design](#11-semantic-search-system-design)
+  - [⚡ Token Streaming System Design](#12-token-streaming-system-design)
+  - [🌐 API Gateway System Design](#13-api-gateway-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -53,7 +54,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 1 | Design a URL Shortener | ✅ [Blueprint](./level_1_core_system_design/url_shortener/url_shortener_system_design.md) |
 | 2 | Design Pastebin | ✅ [Blueprint](./level_1_core_system_design/pastebin/pastebin_system_design.md) |
 | 3 | Design File Storage System | ✅ [Blueprint](./level_1_core_system_design/file_storage/file_storage_system_design.md) |
-| 4 | Design Dropbox | ⬜ Planned |
+| 4 | Design Dropbox | ✅ [Blueprint](./level_1_core_system_design/dropbox/dropbox_system_design.md) |
 | 5 | Design Parking Lot | ⬜ Planned |
 | 6 | Design Library Management System | ⬜ Planned |
 | 7 | Design ATM System | ⬜ Planned |
@@ -270,7 +271,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 3 | ✅✅✅⬜⬜⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 4 | ✅✅✅✅⬜⬜⬜⬜⬜ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -286,7 +287,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **12** | **11.1%** |
+| | **Total** | **108** | **13** | **12.0%** |
 
 ---
 
@@ -620,6 +621,31 @@ Visual layout illustrating the Linux epoll connection events listener, CPU core 
 Cloud-native layout showing traffic passing through WAF, NLB layers, ECS Envoy task arrays, authentication, caching tiers, and downstream service routing targets.
 
 ![AWS Cloud-Native API Gateway Architecture](./level_8_distributed_systems/api_gateway/api_gateway_aws_architecture.png)
+
+---
+
+### 13. Dropbox System Design
+A production-grade cloud file synchronization service modeled on Dropbox/Google Drive. Features variable-size Rabin fingerprint chunking, global metadata block-level deduplication, real-time sync notification push loops, and local SQLite device syncing indexes.
+
+* **Documentation:** [Dropbox System Design (dropbox_system_design.md)](./level_1_core_system_design/dropbox/dropbox_system_design.md)
+
+#### Dropbox Tech Stack Details (with AWS Service Mapping)
+* **Amazon ECS Fargate:** Hosts the metadata and block ingest orchestration tasks.
+* **Amazon S3 Buckets:** Provides high-durability object storage for blocks. Standard lifecycles archive versions.
+* **Amazon Aurora PostgreSQL:** Tracks directory namespaces and versions map under serializable transaction isolates.
+* **Amazon ElastiCache for Redis:** Indexes block hashes to coordinate low-latency dedupe checks.
+
+#### Dropbox Architecture Diagrams
+
+##### A. High-Level System Architecture & Client Sync Ingestion Flow
+Visual layout showing Client Rabin fingerprint chunk pipelines, metadata, block servers, global dedup check, S3 block write, and WebSocket notification broadcasts.
+
+![Dropbox System Architecture](./level_1_core_system_design/dropbox/dropbox_system_architecture.png)
+
+##### B. AWS Cloud-Native Dropbox Sync Layout
+Cloud-native deployment showing public NLB gates, private VPC tiers, ECS pods, storage buckets, SQS queues, and WebSocket connection brokers.
+
+![AWS Cloud-Native Dropbox Architecture](./level_1_core_system_design/dropbox/dropbox_aws_architecture.png)
 
 ---
 
