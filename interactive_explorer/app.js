@@ -3,6 +3,14 @@ const systemData = {
     url_shortener: {
         title: "URL Shortener System",
         description: "High-scale unique link creation and fast redirection routing engine with multi-tier edge caching.",
+        docLink: "../level_1_core_system_design/url_shortener/url_shortener_system_design.md",
+        techStack: [
+            { service: "Amazon Aurora PostgreSQL", role: "Stores URL mappings with short_code as primary key for database-level uniqueness enforcement." },
+            { service: "Amazon ElastiCache for Redis", role: "In-memory URL cache serving redirect lookups in < 1ms. Also used for rate limiting." },
+            { service: "Amazon MSK (Kafka)", role: "Decouples the redirect hot path from analytics processing. Click events are buffered." },
+            { service: "Amazon Redshift Serverless", role: "Column-oriented OLAP store for real-time click analytics and aggregations." },
+            { service: "Amazon CloudFront", role: "Edge-caches redirect responses at 400+ global locations, absorbing 60%+ of read traffic." }
+        ],
         nodes: {
             "ingress": {
                 name: "Route 53 & CloudFront CDN",
@@ -80,6 +88,14 @@ const systemData = {
     pastebin: {
         title: "Pastebin Sharing Platform",
         description: "Metadata and file-separated storage engine supporting compressed content blobs and full-text discovery.",
+        docLink: "../level_1_core_system_design/pastebin/pastebin_system_design.md",
+        techStack: [
+            { service: "Amazon S3", role: "Content store for raw compressed paste content (zstd) with 11 nines durability." },
+            { service: "Amazon Aurora PostgreSQL", role: "Stores lean paste metadata (~200 bytes/record). Partial indexes optimize expiry." },
+            { service: "Amazon ElastiCache for Redis", role: "Three-tier cache storing metadata hashes, compressed content blobs, and pre-rendered HTML." },
+            { service: "Amazon OpenSearch Service", role: "Full-text search over public paste titles and content snippets for discovery." },
+            { service: "Amazon MSK (Kafka)", role: "Decouples read/write paths from async moderation scanning and view analytics." }
+        ],
         nodes: {
             "ingress": {
                 name: "CloudFront CDN Edge",
@@ -130,6 +146,13 @@ const systemData = {
     file_storage: {
         title: "Distributed File Storage",
         description: "Scale-out block/file storage system separating control path (metadata) from high-throughput data path (blocks).",
+        docLink: "../level_1_core_system_design/file_storage/file_storage_system_design.md",
+        techStack: [
+            { service: "Amazon ECS Fargate", role: "Hosts the stateless Master Cluster managing namespace lookup, leasing, and block reports." },
+            { service: "Amazon EC2 Auto Scaling", role: "Runs high-performance local NVMe storage nodes serving raw 64 MB block chunks." },
+            { service: "Amazon DynamoDB", role: "Serves as the high-throughput transactional metadata registry for directory listings." },
+            { service: "Amazon S3", role: "Serves as the backup/cold storage tier for archiving snapshot states." }
+        ],
         nodes: {
             "ingress": {
                 name: "Network Load Balancer (NLB)",
@@ -171,53 +194,16 @@ const systemData = {
             }
         }
     },
-    food_delivery: {
-        title: "Food Delivery Architecture",
-        description: "Scalable geospatial ingestion and order matchmaking engines connecting users, kitchens, and riders.",
-        nodes: {
-            "ingress": {
-                name: "Application Load Balancer",
-                category: "Networking Ingress",
-                description: "Routes client REST requests, restaurant webhooks, and rider telemetry streams.",
-                payload: `POST /api/v1/orders/checkout\nAuthorization: Bearer jwt_rider_token`,
-                config: `# HTTP/HTTPS ALB listener rules`
-            },
-            "proxy": {
-                name: "ECS Fargate (Core Microservices)",
-                category: "Compute Clusters",
-                description: "Hosts the Order, Restaurant, Delivery, and Dispatch engines coordinating matchmaking queries.",
-                payload: `{
-  "order_id": "ord_884",
-  "matching_status": "searching_rider"
-}`,
-                config: `# ECS Fargate task mappings`
-            },
-            "redis": {
-                name: "ElastiCache Redis Geospatial",
-                category: "Geospatial In-Memory Engine",
-                description: "Stores live rider coordinate records. Triggers rapid queries to locate closest riders inside a 5km radius.",
-                payload: `GEORADIUS active_riders 72.87 19.07 5 km`,
-                config: `# Redis Geo-spatial cache cluster settings`
-            },
-            "db": {
-                name: "Aurora PostgreSQL Transactional",
-                category: "Durable Orders database",
-                description: "Transactional DB mapping orders, checkout records, payment authorizations, and ledger updates.",
-                payload: `INSERT INTO order_ledgers (order_id, amount, status) VALUES ('ord_884', 24.50, 'authorized');`,
-                config: `# Aurora PostgreSQL cluster settings`
-            },
-            "keyspaces": {
-                name: "Keyspaces (Cassandra Cluster)",
-                category: "Rider Telemetry logger",
-                description: "Managed Cassandra storage. Ingests heavy raw rider location coordinates updates (25k writes/sec).",
-                payload: `INSERT INTO rider_tracks (rider_id, lat, lng, time) VALUES ('r_42', 19.07, 72.87, 1784643600);`,
-                config: `# Cassandra keyspaces schemas and tables`
-            }
-        }
-    },
     dropbox: {
         title: "Dropbox Cloud Synchronization",
         description: "Delta synchronization storage system resolving conflicts at block-level via global hashes indexing.",
+        docLink: "../level_1_core_system_design/dropbox/dropbox_system_design.md",
+        techStack: [
+            { service: "Amazon ECS Fargate", role: "Hosts the metadata and block ingest orchestration tasks." },
+            { service: "Amazon S3 Buckets", role: "Provides high-durability object storage for blocks. Standard lifecycles archive versions." },
+            { service: "Amazon Aurora PostgreSQL", role: "Tracks directory namespaces and versions map under serializable transaction isolates." },
+            { service: "Amazon ElastiCache for Redis", role: "Indexes block hashes to coordinate low-latency dedupe checks." }
+        ],
         nodes: {
             "ingress": {
                 name: "Network Load Balancer (NLB)",
@@ -263,6 +249,14 @@ const systemData = {
     parking_lot: {
         title: "Smart Parking Lot Engine",
         description: "IoT-enabled parking slot allocation, sensor telemetry processor, and billing ledger tracker.",
+        docLink: "../level_1_core_system_design/parking_lot/parking_lot_system_design.md",
+        techStack: [
+            { service: "AWS IoT Core", role: "Directs lightweight MQTT state updates from bay sensors." },
+            { service: "AWS Lambda", role: "Processes raw sensor signals and updates Redis geospatial availability caches." },
+            { service: "Amazon ECS Fargate", role: "Hosts the Rest API routing spot allocations for entry/exit gates." },
+            { service: "Amazon ElastiCache for Redis", role: "Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups." },
+            { service: "Amazon Aurora PostgreSQL", role: "Implements ticket ledgers and invoice bookings under optimistic transaction checks." }
+        ],
         nodes: {
             "ingress": {
                 name: "API Gateway & AWS IoT Core",
@@ -298,9 +292,70 @@ const systemData = {
             }
         }
     },
+    food_delivery: {
+        title: "Food Delivery Architecture",
+        description: "Scalable geospatial ingestion and order matchmaking engines connecting users, kitchens, and riders.",
+        docLink: "../level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md",
+        techStack: [
+            { service: "Amazon Aurora PostgreSQL", role: "Handles critical transactional order lifecycle, payment ledger logs, and user metadata." },
+            { service: "Amazon DocumentDB", role: "Houses restaurant profiles and dynamic menus in a single document layout, avoiding SQL joins." },
+            { service: "Amazon ElastiCache for Redis", role: "Manages real-time driver coordinates using in-memory geospatial indexes and broadcasts updates." },
+            { service: "Amazon OpenSearch Service", role: "Drives food search, text keyword autocomplete, and geospatial listing queries near user." },
+            { service: "Amazon Keyspaces (Cassandra)", role: "Serverless wide-column DB digesting heavy location coordinate write-streams from riders." },
+            { service: "Amazon MSK (Kafka)", role: "Decouples checkout and order placement services from background notification tasks." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Application Load Balancer",
+                category: "Networking Ingress",
+                description: "Routes client REST requests, restaurant webhooks, and rider telemetry streams.",
+                payload: `POST /api/v1/orders/checkout\nAuthorization: Bearer jwt_rider_token`,
+                config: `# HTTP/HTTPS ALB listener rules`
+            },
+            "proxy": {
+                name: "ECS Fargate (Core Microservices)",
+                category: "Compute Clusters",
+                description: "Hosts the Order, Restaurant, Delivery, and Dispatch engines coordinating matchmaking queries.",
+                payload: `{
+  "order_id": "ord_884",
+  "matching_status": "searching_rider"
+}`,
+                config: `# ECS Fargate task mappings`
+            },
+            "redis": {
+                name: "ElastiCache Redis Geospatial",
+                category: "Geospatial In-Memory Engine",
+                description: "Stores live rider coordinate records. Triggers rapid queries to locate closest riders inside a 5km radius.",
+                payload: `GEORADIUS active_riders 72.87 19.07 5 km`,
+                config: `# Redis Geo-spatial cache cluster settings`
+            },
+            "db": {
+                name: "Aurora PostgreSQL Transactional",
+                category: "Durable Orders database",
+                description: "Transactional DB mapping orders, checkout records, payment authorizations, and ledger updates.",
+                payload: `INSERT INTO order_ledgers (order_id, amount, status) VALUES ('ord_884', 24.50, 'authorized');`,
+                config: `# Aurora PostgreSQL cluster settings`
+            },
+            "keyspaces": {
+                name: "Keyspaces (Cassandra Cluster)",
+                category: "Rider Telemetry logger",
+                description: "Managed Cassandra storage. Ingests heavy raw rider location coordinates updates (25k writes/sec).",
+                payload: `INSERT INTO rider_tracks (rider_id, lat, lng, time) VALUES ('r_42', 19.07, 72.87, 1784643600);`,
+                config: `# Cassandra keyspaces schemas and tables`
+            }
+        }
+    },
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
+        docLink: "../level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md",
+        techStack: [
+            { service: "Amazon OpenSearch Serverless", role: "HNSW-indexed vector search over 10M+ chunks with metadata filtering and scalar quantization." },
+            { service: "Amazon OpenSearch Service", role: "BM25 sparse keyword search for exact-match retrieval, combined with dense search via RRF." },
+            { service: "Amazon SageMaker", role: "Hosts cross-encoder model to re-score top-50 candidates for 10–20% higher accuracy." },
+            { service: "Amazon Bedrock Titan", role: "Managed embedding API for batch document indexing and real-time query embedding." },
+            { service: "Amazon Bedrock Claude/Titan", role: "Managed LLM inference with SSE streaming. Supports augmented prompts and citations." }
+        ],
         nodes: {
             "ingress": {
                 name: "Application Load Balancer",
@@ -322,7 +377,7 @@ const systemData = {
             "opensearch": {
                 name: "Amazon OpenSearch Cluster",
                 category: "Search Database",
-                description: "Unified vector space storage. Houses HNSW index graph shards for dense checks and traditional BM25 inverted indices.",
+                description: "Unified vector space database. Houses HNSW index graph shards for dense cosine checks and traditional BM25 inverted indices.",
                 payload: `{
   "dense_scores": [0.912, 0.844],
   "sparse_scores": [15.22, 11.08]
@@ -358,6 +413,13 @@ const systemData = {
     vector_database: {
         title: "Distributed Vector Database",
         description: "Low-latency LSM-like segment space vector database. Optimizes HNSW index graphs using scalar quantization.",
+        docLink: "../level_7_ai_systems/vector_database/vector_database_system_design.md",
+        techStack: [
+            { service: "Amazon EC2 (r6g nodes)", role: "Holds the active in-memory HNSW index structures and executes vector calculations." },
+            { service: "Amazon EBS (gp3)", role: "Provides fast local storage for sequential Write-Ahead Log (WAL) commits." },
+            { service: "Amazon ECS Fargate", role: "Hosts the stateless Proxy Coordination Cluster managing schemas, shards, and gather queries." },
+            { service: "Amazon S3", role: "Serves as the backup snapshot registry for archiving segment indexes." }
+        ],
         nodes: {
             "ingress": {
                 name: "Application Load Balancer",
@@ -424,6 +486,14 @@ const systemData = {
     chat_gpt: {
         title: "ChatGPT Conversational Engine",
         description: "Low-latency streaming conversation orchestrator with active memory pools and GPU inference scaling.",
+        docLink: "../level_7_ai_systems/chat_gpt/chatgpt_system_design.md",
+        techStack: [
+            { service: "Application Load Balancer (ALB)", role: "Supports long-lived HTTP/2 chunked-transfer connections (SSE), pushing response tokens." },
+            { service: "Amazon DynamoDB", role: "Stores chat histories, partitioned by session_id and sorted by created_at for sub-10ms reads." },
+            { service: "Amazon ElastiCache for Redis", role: "Caches short-term active chat context windows and session state." },
+            { service: "Amazon OpenSearch Vector Engine", role: "Indexes chunked vector embeddings using HNSW graphs for Retrieval-Augmented Generation." },
+            { service: "Amazon EKS GPU Instances", role: "Runs model servers (vLLM/Triton) on GPU instances (p4d/p5) using tensor parallelism." }
+        ],
         nodes: {
             "ingress": {
                 name: "Application Load Balancer",
@@ -471,6 +541,13 @@ const systemData = {
     ai_agent_framework: {
         title: "AI Agent Framework Loop",
         description: "Stateful agent execution engine executing loops, checking checkpoints, and providing tool sandboxes.",
+        docLink: "../level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md",
+        techStack: [
+            { service: "AWS Lambda", role: "Provides ephemeral execution sandboxes for untrusted agent tool code." },
+            { service: "Amazon Aurora PostgreSQL", role: "Logs thread checkpoints and state variables as transactional JSONB structures." },
+            { service: "Amazon ElastiCache for Redis", role: "Stores temporary active context variables and manages locks for active threads." },
+            { service: "Amazon Bedrock", role: "Serves as the backplane model provider." }
+        ],
         nodes: {
             "ingress": {
                 name: "AWS API Gateway",
@@ -519,6 +596,15 @@ const systemData = {
     llm_gateway: {
         title: "LLM Gateway Pipeline",
         description: "High-throughput proxy layer routing, auditing, and rate-limiting upstream LLM model transactions.",
+        docLink: "../level_7_ai_systems/llm_gateway/llm_gateway_system_design.md",
+        techStack: [
+            { service: "Application Load Balancer (ALB)", role: "VPC Ingress gateway proxy. Distributes incoming client HTTP/2 Completion streams." },
+            { service: "Amazon ECS Fargate", role: "Hosts Go proxy worker shards to validate keys, check rate-limits, and filter completions." },
+            { service: "Amazon ElastiCache for Redis", role: "Sub-millisecond token rate counter and semantic cache memory cluster." },
+            { service: "Amazon DynamoDB", role: "Holds active tenant configuration states, daily spend budgets, and allowed provider maps." },
+            { service: "Kinesis Data Firehose", role: "Asynchronous serverless logging pipeline to pull audit ledgers without blocking requests." },
+            { service: "Amazon Bedrock API", role: "Managed Bedrock Execution Endpoint Connection forwarding requests upstream." }
+        ],
         nodes: {
             "ingress": {
                 name: "Application Load Balancer (ALB)",
@@ -636,6 +722,14 @@ const systemData = {
     semantic_search: {
         title: "Hybrid Semantic Search Engine",
         description: "Multi-stage vector retrieval, BM25 text keyword lookup, Reciprocal Rank Fusion, and Cross-Encoder reranking.",
+        docLink: "../level_7_ai_systems/semantic_search/semantic_search_system_design.md",
+        techStack: [
+            { service: "Application Load Balancer (ALB)", role: "VPC public endpoint router directing searches to ECS containers." },
+            { service: "ECS Search Service Pods", role: "Coordinates search workflows, runs RRF fusion, and calls Reranker endpoints." },
+            { service: "Amazon OpenSearch Cluster", role: "Houses HNSW index graphs for dense search and traditional BM25 inverted indices." },
+            { service: "SageMaker Reranker Endpoint", role: "Hosts Cross-Encoder model to calculate relevance scores on candidates." },
+            { service: "Amazon MSK Kafka", role: "Buffers incoming document updates to shield OpenSearch indexing nodes." }
+        ],
         nodes: {
             "ingress": {
                 name: "Application Load Balancer",
@@ -721,6 +815,14 @@ const systemData = {
     token_streaming: {
         title: "Real-Time Token Streaming Engine",
         description: "Low-latency HTTP/2 Server-Sent Events broker. Bypasses load balancer connection timeouts to pipeline tokens dynamically.",
+        docLink: "../level_7_ai_systems/token_streaming/token_streaming_system_design.md",
+        techStack: [
+            { service: "Network Load Balancer (NLB)", role: "Operates at layer 4 to preserve client TCP sockets and avoid long-lived SSE timeouts." },
+            { service: "EKS Connection Pods", role: "Gateway proxy nodes holding client sockets inside non-blocking event-loop (epoll) wait queues." },
+            { service: "ElastiCache Redis Pub/Sub", role: "Message broker routing generated tokens from GPU worker instances to gateway connections." },
+            { service: "Amazon SQS Queue", role: "Orchestrates prompt generation tasks distributed across GPU model instances." },
+            { service: "EC2 GPU Worker Instances", role: "Hosts model instances (vLLM/Triton) processing token streaming batches." }
+        ],
         nodes: {
             "ingress": {
                 name: "Network Load Balancer (NLB)",
@@ -787,6 +889,14 @@ const systemData = {
     api_gateway: {
         title: "API Gateway Engine",
         description: "High-performance edge reverse proxy routing, auditing, and rate-limiting general client HTTP requests.",
+        docLink: "../level_8_distributed_systems/api_gateway/api_gateway_system_design.md",
+        techStack: [
+            { service: "Network Load Balancer (NLB)", role: "Maps TCP connections directly to Envoy proxy tasks at the VPC boundary." },
+            { service: "Amazon ECS Fargate", role: "Envoy-based reverse proxy container nodes executing validation and route filter chains." },
+            { service: "Amazon ElastiCache for Redis", role: "Records sliding-window sorted sets for precise rate-limit metrics." },
+            { service: "Amazon DynamoDB", role: "Stores active configuration rules, dynamic routes, and tenant security maps." },
+            { service: "Cognito User Pool Auth", role: "Validates JWT credentials before forwarding traffic downstream." }
+        ],
         nodes: {
             "ingress": {
                 name: "Network Load Balancer (NLB)",
@@ -873,6 +983,10 @@ const insConfig = document.getElementById("ins-config");
 const simulateBtn = document.getElementById("simulate-btn");
 const indicator = document.querySelector(".status-indicator");
 const indicatorText = document.querySelector(".status-text");
+
+// Tech Stack Detail Nodes
+const techStackContainer = document.getElementById("system-tech-stack");
+const docLinkButton = document.getElementById("system-doc-link");
 
 // Render Selected AWS Architecture SVGs
 function renderSVG() {
@@ -1515,6 +1629,12 @@ function setupInteractionListeners() {
             const rect = node.querySelector("rect");
             if (rect) rect.style.strokeWidth = "3px";
 
+            // If a node is clicked, auto-switch tab to Payload/Config for node inspection
+            const activeTab = document.querySelector(".tab-btn.active").getAttribute("data-tab");
+            if (activeTab === "system") {
+                switchTab("payload");
+            }
+
             updateNodeInspector();
         });
     });
@@ -1534,6 +1654,47 @@ function updateNodeInspector() {
     insConfig.innerText = node.config;
 }
 
+// Update System Tech Stack Details
+function updateSystemOverview() {
+    const system = systemData[currentSystem];
+    
+    // Set doc link
+    docLinkButton.setAttribute("href", system.docLink);
+    
+    // Set tech stack list
+    let listHTML = "";
+    system.techStack.forEach(item => {
+        listHTML += `
+        <div class="tech-item">
+            <span class="tech-service">${item.service}</span>
+            <span class="tech-role">${item.role}</span>
+        </div>`;
+    });
+    techStackContainer.innerHTML = listHTML;
+}
+
+// Switch tabs helper
+function switchTab(targetTab) {
+    document.querySelectorAll(".tab-btn").forEach(t => {
+        t.classList.remove("active");
+        if (t.getAttribute("data-tab") === targetTab) {
+            t.classList.add("active");
+        }
+    });
+
+    document.querySelectorAll(".tab-content").forEach(content => {
+        content.classList.add("hidden");
+    });
+
+    if (targetTab === "system") {
+        document.getElementById("tab-system").classList.remove("hidden");
+    } else if (targetTab === "payload") {
+        document.getElementById("tab-payload").classList.remove("hidden");
+    } else {
+        document.getElementById("tab-config").classList.remove("hidden");
+    }
+}
+
 // System Selector Toggles
 document.querySelectorAll(".nav-item").forEach(btn => {
     btn.addEventListener("click", (e) => {
@@ -1547,6 +1708,9 @@ document.querySelectorAll(".nav-item").forEach(btn => {
         systemTitle.innerText = systemData[currentSystem].title;
         systemDescription.innerText = systemData[currentSystem].description;
 
+        updateSystemOverview();
+        // Reset inspector focus to System Overview tab when switching systems
+        switchTab("system");
         renderSVG();
     });
 });
@@ -1571,22 +1735,12 @@ simulateBtn.addEventListener("click", () => {
 // Tab Navigation inside Inspector
 document.querySelectorAll(".tab-btn").forEach(btn => {
     btn.addEventListener("click", () => {
-        document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
-        btn.classList.add("active");
-
-        const targetTab = btn.getAttribute("data-tab");
-        document.querySelectorAll(".tab-content").forEach(content => {
-            content.classList.add("hidden");
-        });
-
-        if (targetTab === "payload") {
-            document.getElementById("tab-payload").classList.remove("hidden");
-        } else {
-            document.getElementById("tab-config").classList.remove("hidden");
-        }
+        switchTab(btn.getAttribute("data-tab"));
     });
 });
 
 // Initial Invocations
 simulateBtn.innerText = "Pause Simulation";
+updateSystemOverview();
+switchTab("system");
 renderSVG();

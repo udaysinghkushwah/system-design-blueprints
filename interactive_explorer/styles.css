@@ -446,3 +446,77 @@ svg {
     white-space: pre-wrap;
     word-break: break-all;
 }
+
+/* System Details & Tech Stack Styles */
+.system-details-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 12px;
+}
+
+.tech-stack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 240px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.tech-stack-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.tech-stack-list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.tech-item {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tech-service {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--accent-blue);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tech-role {
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: var(--text-primary);
+}
+
+.doc-section {
+    margin-top: 8px;
+}
+
+.doc-link {
+    display: block;
+    text-align: center;
+    width: 100%;
+    padding: 10px 0;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent-blue) 0%, #1e40af 100%);
+    color: #ffffff;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.doc-link:hover {
+    opacity: 0.9;
+}
+
