@@ -719,6 +719,12 @@ If you find these system design blueprints helpful, support my work by buying me
 
 [![Buy Me A Chai](https://img.shields.io/badge/Buy%20Me%20a%20Chai-orange?style=for-the-badge&logo=coffee&logoColor=white)](https://www.buymeachai.in/toudaysinghkushwah)
 
+## 👤 Author & Contact
+
+**Uday Singh**
+* 📬 **Email:** [toudaysinghkushwah@gmail.com](mailto:toudaysinghkushwah@gmail.com)
+* 🐙 **GitHub:** [github.com/udaysinghkushwah](https://github.com/udaysinghkushwah)
+
 ---
 
 *Updated on 2026-07-21*

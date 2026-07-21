@@ -78,3 +78,11 @@ All code, documents, and visual layouts are fully open-source.
 * **Star the GitHub Repository:** [github.com/udaysinghkushwah/system-design-blueprints](https://github.com/udaysinghkushwah/system-design-blueprints) ⭐️
 
 If you find these blueprints helpful for your interviews or engineering projects, consider **[Buying Me a Chai ☕](https://www.buymeachai.in/toudaysinghkushwah)** to support more designs!
+
+---
+
+### About the Author
+**Uday Singh** is a software engineer building and architecting high-scale distributed systems. You can connect or reach out for collaborations via:
+* 📬 **Email:** [toudaysinghkushwah@gmail.com](mailto:toudaysinghkushwah@gmail.com)
+* 🐙 **GitHub:** [github.com/udaysinghkushwah](https://github.com/udaysinghkushwah)
+* 🌐 **Live Portfolio:** [udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
