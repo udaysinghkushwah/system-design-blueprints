@@ -213,6 +213,8 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+![AWS Cloud-Native LLM Gateway Architecture](./llm_gateway_aws_architecture.png)
+
 ### AWS Cloud-Native Architecture Flowchart
 
 ```mermaid

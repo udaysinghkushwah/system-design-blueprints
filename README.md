@@ -526,6 +526,11 @@ Overview of client routing pipeline, authentication verify filters, semantic cac
 
 ![LLM Gateway Architecture](./level_7_ai_systems/llm_gateway/llm_gateway_system_architecture.png)
 
+##### B. AWS Cloud-Native LLM Gateway Architecture
+AWS cloud-native deployment using ECS Fargate, DynamoDB configuration registries, ElastiCache Redis counters, and Kinesis async metrics logging.
+
+![AWS Cloud-Native LLM Gateway Architecture](./level_7_ai_systems/llm_gateway/llm_gateway_aws_architecture.png)
+
 ---
 
 ### 10. Semantic Search System Design
@@ -545,6 +550,11 @@ Visual layout detailing twin bi-encoder dense and BM25 sparse search indices, re
 
 ![Semantic Search Architecture](./level_7_ai_systems/semantic_search/semantic_search_system_architecture.png)
 
+##### B. AWS Cloud-Native Semantic Search Engine Architecture
+AWS cloud-native deployment using ECS Fargate search pods, Amazon OpenSearch Service indices, and SageMaker Serverless rerank endpoints.
+
+![AWS Cloud-Native Hybrid Semantic Search](./level_7_ai_systems/semantic_search/semantic_search_aws_architecture.png)
+
 ---
 
 ### 11. Token Streaming System Design
@@ -563,6 +573,11 @@ A high-concurrency real-time stream broker optimized for pushing token generatio
 Visual overview showing high-throughput NLB, Epoll connection gateways, and decouple publish/subscribe topics.
 
 ![Token Streaming Architecture](./level_7_ai_systems/token_streaming/token_streaming_system_architecture.png)
+
+##### B. AWS Cloud-Native Token Streaming Engine Architecture
+AWS cloud-native deployment using NLB, EKS connection gateway pods, ElastiCache Redis Pub/Sub, and EKS GPU inference servers.
+
+![AWS Cloud-Native Token Streaming Engine](./level_7_ai_systems/token_streaming/token_streaming_aws_architecture.png)
 
 ---
 

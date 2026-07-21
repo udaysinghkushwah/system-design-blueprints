@@ -167,6 +167,8 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+![AWS Cloud-Native Token Streaming Engine](./token_streaming_aws_architecture.png)
+
 ### AWS Cloud-Native Architecture Flowchart
 
 ```mermaid

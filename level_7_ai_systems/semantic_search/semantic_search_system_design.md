@@ -188,6 +188,8 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+![AWS Cloud-Native Hybrid Semantic Search](./semantic_search_aws_architecture.png)
+
 ### AWS Cloud-Native Architecture Flowchart
 
 ```mermaid
