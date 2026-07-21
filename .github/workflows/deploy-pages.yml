@@ -1,0 +1,59 @@
+name: Deploy Interactive Explorer to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Assemble Static Site
+        run: |
+          mkdir dist
+          # Copy the explorer files
+          cp -r interactive_explorer/* dist/
+          
+          # Remove symlinks inside dist to avoid duplicates or broken references
+          rm -f dist/level_1_core_system_design
+          rm -f dist/level_4_ride_sharing_delivery
+          rm -f dist/level_7_ai_systems
+          rm -f dist/level_8_distributed_systems
+          
+          # Copy the original directories directly into the build output root
+          cp -r level_1_core_system_design dist/
+          cp -r level_4_ride_sharing_delivery dist/
+          cp -r level_7_ai_systems dist/
+          cp -r level_8_distributed_systems dist/
+          cp README.md dist/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
