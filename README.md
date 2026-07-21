@@ -445,6 +445,11 @@ Visual layout showing proxy query routing, LSM-like mutable mem-segments, backgr
 
 ![Distributed Vector Database Architecture](./level_7_ai_systems/vector_database/vector_database_system_architecture.png)
 
+##### B. AWS Cloud-Native Vector Database Architecture
+AWS cloud-native deployment using ECS proxy routing nodes, EC2 r6g memory-optimized HNSW cluster nodes, EBS gp3 write-ahead logs, and Amazon S3 segment backups.
+
+![AWS Cloud-Native Distributed Vector Database](./level_7_ai_systems/vector_database/vector_database_aws_architecture.png)
+
 ---
 
 ### 7. ChatGPT System Design

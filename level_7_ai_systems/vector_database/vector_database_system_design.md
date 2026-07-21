@@ -201,6 +201,33 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+![AWS Cloud-Native Distributed Vector Database](./vector_database_aws_architecture.png)
+
+### AWS Cloud-Native Architecture Flowchart
+
+```mermaid
+graph TD
+    %% Ingress
+    User[Client SDK] -->|Route 53| ALB[Application Load Balancer]
+
+    %% VPC
+    subgraph VPC ["AWS Virtual Private Cloud (VPC)"]
+        %% ECS Proxy Layer
+        subgraph ProxySubnet ["ECS Proxy Subnet"]
+            ALB --> ECS[Amazon ECS Coordinator Task]
+        end
+
+        %% Database Tier
+        subgraph DatabaseTier ["Database Shard Subnet"]
+            ECS -->|MURMUR3 Consistent Routing| EC2[Amazon EC2 r6g Instances]
+            EC2 -->|Write WAL Log| EBS[Amazon EBS gp3 Volume]
+        end
+    end
+
+    %% Storage Backups
+    EC2 -->|Compactor Segment Uploads| S3[Amazon S3 Cold Storage]
+```
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |
