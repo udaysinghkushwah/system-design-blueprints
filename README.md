@@ -7,6 +7,17 @@
 
 ---
 
+## ⚡ Interactive Architecture Explorer
+
+We have built a premium, interactive web dashboard to explore the AWS Cloud-Native architectures for **LLM Gateway**, **Semantic Search**, **Token Streaming**, and **Vector Database** in real-time.
+
+* **Open Explorer Dashboard:** [Launch Locally (http://localhost:8000)](http://localhost:8000) (running on your local port `8000`)
+* **Features:**
+  * **Clickable Diagram Nodes:** Select any service icon (like ALB, ECS, DynamoDB, OpenSearch, etc.) to immediately inspect its operational role, live JSON data payloads, and matching AWS Terraform configuration blocks.
+  * **Traffic Simulator:** Toggle live neon data packet flow animations to trace queries passing through VPC subnet boundaries.
+
+---
+
 ## 📋 Table of Contents
 
 - [🗺️ System Design Roadmap](#️-system-design-roadmap)
