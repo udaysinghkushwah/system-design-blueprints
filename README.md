@@ -18,6 +18,10 @@
   - [🧠 RAG Pipeline System Design](#5-rag-pipeline-system-design)
   - [💾 Vector Database System Design](#6-vector-database-system-design)
   - [🤖 ChatGPT System Design](#7-chatgpt-system-design)
+  - [🤖 AI Agent Framework System Design](#8-ai-agent-framework-system-design)
+  - [🌐 LLM Gateway System Design](#9-llm-gateway-system-design)
+  - [🔍 Semantic Search System Design](#10-semantic-search-system-design)
+  - [⚡ Token Streaming System Design](#11-token-streaming-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -122,10 +126,10 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 1 | Design ChatGPT | ✅ [Blueprint](./level_7_ai_systems/chat_gpt/chatgpt_system_design.md) |
 | 2 | Design RAG Pipeline | ✅ [Blueprint](./level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md) |
 | 3 | Design Vector Database | ✅ [Blueprint](./level_7_ai_systems/vector_database/vector_database_system_design.md) |
-| 4 | Design AI Agent Framework | ⬜ Planned |
-| 5 | Design LLM Gateway | ⬜ Planned |
-| 6 | Design Semantic Search | ⬜ Planned |
-| 7 | Design Token Streaming | ⬜ Planned |
+| 4 | Design AI Agent Framework | ✅ [Blueprint](./level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md) |
+| 5 | Design LLM Gateway | ✅ [Blueprint](./level_7_ai_systems/llm_gateway/llm_gateway_system_design.md) |
+| 6 | Design Semantic Search | ✅ [Blueprint](./level_7_ai_systems/semantic_search/semantic_search_system_design.md) |
+| 7 | Design Token Streaming | ✅ [Blueprint](./level_7_ai_systems/token_streaming/token_streaming_system_design.md) |
 
 ---
 
@@ -260,7 +264,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
-| 7 | AI Systems | 7 | 3 | ✅✅✅⬜⬜⬜⬜ |
+| 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
 | 8 | Distributed Systems | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -270,7 +274,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **7** | **6.4%** |
+| | **Total** | **108** | **11** | **10.1%** |
 
 ---
 
@@ -476,6 +480,56 @@ Visual flow of document indexing, semantic nearest-neighbor vector search, conve
 Cloud-native deployment on AWS routing SSE streams through Application Load Balancers, RAG via OpenSearch Vector Engine, and inference on Amazon EKS GPU clusters.
 
 ![ChatGPT AWS System Architecture](./level_7_ai_systems/chat_gpt/chatgpt_system_architecture_v2.png)
+
+---
+
+### 8. AI Agent Framework System Design
+A production-grade stateful agent runtime framework (comparable to LangGraph or CrewAI). Features graph-based execution loops, resilient state checkpointing, secure sandboxed execution environments, and Human-in-the-Loop approval gates.
+
+* **Documentation:** [AI Agent Framework System Design (ai_agent_framework_system_design.md)](./level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md)
+
+#### AI Agent Framework Tech Stack Details (with AWS Service Mapping)
+* **AWS Lambda:** Provides ephemeral execution sandboxes for untrusted agent tool code.
+* **Amazon Aurora PostgreSQL:** Logs thread checkpoints and state variables as transactional JSONB structures.
+* **Amazon ElastiCache for Redis:** Stores temporary active context variables and manages locks for active threads.
+* **Amazon Bedrock:** Serves as the backplane model provider.
+
+---
+
+### 9. LLM Gateway System Design
+A high-throughput enterprise gateway proxy layers between application clients and upstream LLM providers. Optimizes model costs, handles intelligent routing and provider failover, and implements semantic query caching.
+
+* **Documentation:** [LLM Gateway System Design (llm_gateway_system_design.md)](./level_7_ai_systems/llm_gateway/llm_gateway_system_design.md)
+
+#### LLM Gateway Tech Stack Details (with AWS Service Mapping)
+* **Amazon ECS Fargate:** Hosts the stateless proxy clusters managing routing, budget validation, and payload processing.
+* **Amazon ElastiCache for Redis:** Implements TPM/RPM rate-limiting bucket logs and semantic cache indexes.
+* **Amazon DynamoDB:** Persistent tenant API keys metadata configuration database.
+* **Amazon S3 & Kinesis Firehose:** Asynchronous ledger logs streaming pipeline.
+
+---
+
+### 10. Semantic Search System Design
+A production-grade, highly precise multi-stage retrieval hybrid search engine. Combines conceptual vector search with sparse keyword search and cross-encoder re-ranking.
+
+* **Documentation:** [Semantic Search System Design (semantic_search_system_design.md)](./level_7_ai_systems/semantic_search/semantic_search_system_design.md)
+
+#### Semantic Search Tech Stack Details (with AWS Service Mapping)
+* **Amazon OpenSearch Service:** Handles both dense vector space calculations (using KNN HNSW indices) and keyword search (BM25) in a single unified schema.
+* **Amazon SageMaker Serverless:** Runs cross-encoder models for top-50 to top-10 candidate precision refinement.
+* **Amazon MSK:** Pipelines catalog ingestion updates asynchronously to avoid search index lock congestion.
+
+---
+
+### 11. Token Streaming System Design
+A high-concurrency real-time stream broker optimized for pushing token generation updates back to client apps with sub-100ms first-token latency targets.
+
+* **Documentation:** [Token Streaming System Design (token_streaming_system_design.md)](./level_7_ai_systems/token_streaming/token_streaming_system_design.md)
+
+#### Token Streaming Tech Stack Details (with AWS Service Mapping)
+* **Network Load Balancer (NLB):** Essential for routing millions of long-lived HTTP/2 TCP streams.
+* **Amazon EKS (EC2 C6g Instances):** Runs Go/Rust connection gateway daemons using non-blocking Epoll loops for memory-efficient concurrency.
+* **Amazon ElastiCache for Redis:** Decouples GPU inference events via Redis Pub/Sub topics.
 
 ---
 
