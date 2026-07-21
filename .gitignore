@@ -1,0 +1,6 @@
+# Build and Deployment outputs
+dist/
+.firebase/
+
+# Local configuration overrides
+.firebaserc
