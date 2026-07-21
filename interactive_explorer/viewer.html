@@ -205,6 +205,9 @@
         const filePath = urlParams.get('file');
 
         if (filePath) {
+            // Calculate base folder path to resolve relative images
+            const folderPath = filePath.substring(0, filePath.lastIndexOf('/')) + '/';
+
             // Load and parse the markdown document
             fetch(`/${filePath}`)
                 .then(response => {
@@ -216,6 +219,16 @@
                 .then(markdown => {
                     // Render markdown using Marked.js
                     document.getElementById('content').innerHTML = marked.parse(markdown);
+                    
+                    // Resolve relative image paths
+                    document.querySelectorAll('#content img').forEach(img => {
+                        const src = img.getAttribute('src');
+                        if (src && !src.startsWith('http') && !src.startsWith('/') && !src.startsWith('data:')) {
+                            const cleanSrc = src.startsWith('./') ? src.substring(2) : src;
+                            img.setAttribute('src', '/' + folderPath + cleanSrc);
+                        }
+                    });
+
                     // Dynamically set page title based on the first H1
                     const h1 = document.querySelector('#content h1');
                     if (h1) {
