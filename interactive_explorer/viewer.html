@@ -303,7 +303,8 @@
 
         if (filePath) {
             // Calculate base folder path to resolve relative images
-            const folderPath = filePath.substring(0, filePath.lastIndexOf('/')) + '/';
+            const lastSlash = filePath.lastIndexOf('/');
+            const folderPath = lastSlash !== -1 ? filePath.substring(0, lastSlash) + '/' : '';
 
             // Load and parse the markdown document
             fetch(`/${filePath}`)
