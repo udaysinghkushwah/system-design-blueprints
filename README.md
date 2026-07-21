@@ -13,9 +13,10 @@
 - [📂 Completed Blueprints](#-completed-blueprints)
   - [🔗 URL Shortener System Design](#1-url-shortener-system-design)
   - [📋 Pastebin System Design](#2-pastebin-system-design)
-  - [🍔 Food Delivery System Design](#3-food-delivery-system-design)
-  - [🧠 RAG Pipeline System Design](#4-rag-pipeline-system-design)
-  - [🤖 ChatGPT System Design](#5-chatgpt-system-design)
+  - [🗄️ Distributed File Storage System Design](#3-distributed-file-storage-system-design)
+  - [🍔 Food Delivery System Design](#4-food-delivery-system-design)
+  - [🧠 RAG Pipeline System Design](#5-rag-pipeline-system-design)
+  - [🤖 ChatGPT System Design](#6-chatgpt-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -34,7 +35,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 |---|-------|--------|
 | 1 | Design a URL Shortener | ✅ [Blueprint](./url_shortener/url_shortener_system_design.md) |
 | 2 | Design Pastebin | ✅ [Blueprint](./pastebin/pastebin_system_design.md) |
-| 3 | Design File Storage System | ⬜ Planned |
+| 3 | Design File Storage System | ✅ [Blueprint](./file_storage/file_storage_system_design.md) |
 | 4 | Design Dropbox | ⬜ Planned |
 | 5 | Design Parking Lot | ⬜ Planned |
 | 6 | Design Library Management System | ⬜ Planned |
@@ -252,7 +253,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 2 | ✅✅⬜⬜⬜⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 3 | ✅✅✅⬜⬜⬜⬜⬜⬜ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -268,7 +269,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **5** | **4.6%** |
+| | **Total** | **108** | **6** | **5.5%** |
 
 ---
 
@@ -326,7 +327,27 @@ Visual flow showing the 3-layer cache strategy (CDN → Redis → PostgreSQL + S
 
 ---
 
-### 3. Food Delivery System Design
+### 3. Distributed File Storage System Design
+A production-grade distributed block/file storage system comparable to HDFS or GFS. Features complete separation of metadata (control plane) and physical data blocks (data plane), rack-aware replication pipelines, block report reconciliation, and sub-millisecond in-memory namespace operations.
+
+* **Documentation:** [Distributed File Storage System Design (file_storage_system_design.md)](./file_storage/file_storage_system_design.md)
+
+#### File Storage Tech Stack Details (with AWS Service Mapping)
+* **Amazon ECS Fargate:** Hosts the stateless Master Cluster managing namespace lookup, leasing, and block reports.
+* **Amazon EC2 Auto Scaling (i3en/d3 instances):** Runs the high-performance local NVMe storage nodes serving raw 64 MB block chunks.
+* **Amazon DynamoDB:** Serves as the high-throughput transactional metadata registry for directory listings and block mappings.
+* **Amazon S3:** Serves as the backup/cold storage tier for archiving snapshot states.
+
+#### File Storage Architecture Diagrams
+
+##### A. High-Level Distributed File Storage Architecture
+Visual overview of the client, master metadata server, journaling log, and pipelined chunk server replicas.
+
+![Distributed File Storage Architecture](./file_storage/file_storage_system_architecture.png)
+
+---
+
+### 4. Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
 * **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./food_delivery/food_delivery_system_design.md)
@@ -375,7 +396,7 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 
 ---
 
-### 4. RAG Pipeline System Design
+### 5. RAG Pipeline System Design
 A production-grade system design for a **Retrieval-Augmented Generation** pipeline — the backbone of knowledge-grounded AI systems. Covers document ingestion, parent-child chunking, hybrid retrieval (dense + BM25), cross-encoder re-ranking, prompt assembly, and grounded LLM generation with citations.
 
 * **Documentation:** [RAG Pipeline System Design (rag_pipeline_system_design.md)](./rag_pipeline/rag_pipeline_system_design.md)
@@ -401,7 +422,7 @@ End-to-end query flow showing parallel dense/sparse retrieval, RRF fusion, cross
 
 ---
 
-### 5. ChatGPT System Design
+### 6. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt/chatgpt_system_design.md)
