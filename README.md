@@ -501,6 +501,11 @@ Overview of app clients, API gateway, state checkpoint store, short/long-term me
 
 ![AI Agent Framework Architecture](./level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_architecture.png)
 
+##### B. AWS-Native Stateful Agent Execution Loop
+Visual workflow illustrating how Lambda sandboxes, DynamoDB states, and ECS orchestrator manage loop checkpoints and tool runs.
+
+![Stateful Agent Execution Loop AWS Workflow](./level_7_ai_systems/ai_agent_framework/ai_agent_aws_workflow.png)
+
 ---
 
 ### 9. LLM Gateway System Design

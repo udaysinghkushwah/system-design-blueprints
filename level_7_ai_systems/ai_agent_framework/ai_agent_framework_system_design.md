@@ -232,6 +232,8 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+![Stateful Agent Execution Loop AWS Workflow](./ai_agent_aws_workflow.png)
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |
