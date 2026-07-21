@@ -199,6 +199,31 @@
             margin: 24px 0;
         }
 
+        /* Buy Me a Chai Floating Button */
+        .buy-chai-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(245, 124, 0, 0.4);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            z-index: 1000;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .buy-chai-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(245, 124, 0, 0.6);
+        }
+
         /* ASCII Flow Diagram styles */
         .ascii-diagram-container {
             background: rgba(15, 23, 42, 0.8);
@@ -252,6 +277,9 @@
         <article class="blueprint-card">
             <div id="content">Loading blueprint document...</div>
         </article>
+        <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="buy-chai-btn">
+            <span>☕</span> Buy Me a Chai
+        </a>
     </div>
 
     <script>
