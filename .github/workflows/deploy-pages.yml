@@ -33,21 +33,19 @@ jobs:
       - name: Assemble Static Site
         run: |
           mkdir dist
-          # Copy the explorer files
-          cp -r interactive_explorer/* dist/
           
-          # Remove symlinks inside dist to avoid duplicates or broken references
-          rm -f dist/level_1_core_system_design
-          rm -f dist/level_4_ride_sharing_delivery
-          rm -f dist/level_7_ai_systems
-          rm -f dist/level_8_distributed_systems
-          
-          # Copy the original directories directly into the build output root
+          # Copy the original content directories
           cp -r level_1_core_system_design dist/
           cp -r level_4_ride_sharing_delivery dist/
           cp -r level_7_ai_systems dist/
           cp -r level_8_distributed_systems dist/
           cp README.md dist/
+          
+          # Copy the dashboard explorer app assets (excluding symlinks)
+          cp interactive_explorer/index.html dist/
+          cp interactive_explorer/styles.css dist/
+          cp interactive_explorer/app.js dist/
+          cp interactive_explorer/viewer.html dist/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
