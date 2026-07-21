@@ -11,8 +11,9 @@
 
 - [🗺️ System Design Roadmap](#️-system-design-roadmap)
 - [📂 Completed Blueprints](#-completed-blueprints)
-  - [🍔 Food Delivery System Design](#1-food-delivery-system-design)
-  - [🤖 ChatGPT System Design](#2-chatgpt-system-design)
+  - [🔗 URL Shortener System Design](#1-url-shortener-system-design)
+  - [🍔 Food Delivery System Design](#2-food-delivery-system-design)
+  - [🤖 ChatGPT System Design](#3-chatgpt-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -29,7 +30,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | # | Topic | Status |
 |---|-------|--------|
-| 1 | Design a URL Shortener | ⬜ Planned |
+| 1 | Design a URL Shortener | ✅ [Blueprint](./url_shortener_sd/url_shortener_system_design.md) |
 | 2 | Design Pastebin | ⬜ Planned |
 | 3 | Design File Storage System | ⬜ Planned |
 | 4 | Design Dropbox | ⬜ Planned |
@@ -249,7 +250,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 1 | ✅⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -265,13 +266,39 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **2** | **1.9%** |
+| | **Total** | **108** | **3** | **2.8%** |
 
 ---
 
 ## 📂 Completed Blueprints
 
-### 1. Food Delivery System Design
+### 1. URL Shortener System Design
+A production-grade system design for a high-scale URL shortening service like **Bitly** or **TinyURL**. Covers unique key generation (KGS), multi-layer caching (CDN → Redis → PostgreSQL), real-time click analytics, and 301 vs 302 redirect trade-offs.
+
+* **Documentation:** [URL Shortener System Design (url_shortener_system_design.md)](./url_shortener_sd/url_shortener_system_design.md)
+
+#### URL Shortener Tech Stack Details (with AWS Service Mapping)
+* **PostgreSQL (Amazon Aurora PostgreSQL):** Stores URL mappings with `short_code` as primary key for database-level uniqueness enforcement. Aurora Global Database provides cross-region replication with $< 1\text{s}$ lag.
+* **Redis (Amazon ElastiCache for Redis):** In-memory URL cache serving redirect lookups in $< 1\text{ms}$. Cluster mode shards keys via hash slots for horizontal scaling. Also used for rate limiting with atomic `INCR` counters.
+* **Apache Kafka (Amazon MSK):** Decouples the redirect hot path from analytics processing. Click events are buffered durably and consumed asynchronously by stream processors.
+* **ClickHouse (Amazon Redshift Serverless):** Column-oriented OLAP store for real-time click analytics — aggregating billions of click events by country, device, referrer, and time.
+* **CloudFront (CDN):** Edge-caches redirect responses at 400+ global locations, absorbing 60%+ of traffic for viral short URLs.
+
+#### URL Shortener Architecture Diagrams
+
+##### A. High-Level System Architecture
+Overview of clients, CDN edge layer, API gateway, core services (Redirect, URL Creation, KGS), caching layer, and analytics pipeline.
+
+![URL Shortener System Architecture](./url_shortener_sd/url_shortener_system_architecture.png)
+
+##### B. Redirect Hot Path — Multi-Layer Cache Strategy
+Visual flow showing the 3-layer caching strategy (CDN → Redis → PostgreSQL) with latency targets and async analytics event publishing.
+
+![URL Shortener Redirect Flow](./url_shortener_sd/url_shortener_redirect_flow.png)
+
+---
+
+### 2. Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
 * **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./food_delivery_sd/food_delivery_system_design.md)
@@ -320,7 +347,7 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 
 ---
 
-### 2. ChatGPT System Design
+### 3. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt_sd/chatgpt_system_design.md)
