@@ -307,7 +307,8 @@
             const folderPath = lastSlash !== -1 ? filePath.substring(0, lastSlash) + '/' : '';
 
             // Load and parse the markdown document
-            fetch(`/${filePath}`)
+            const cleanFetchPath = filePath.startsWith('/') ? filePath : '/' + filePath;
+            fetch(cleanFetchPath)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('File not found');
@@ -335,7 +336,15 @@
                                 const resolvedUrl = new URL(href, window.location.origin + '/' + filePath);
                                 const relPath = resolvedUrl.pathname.substring(1);
                                 const hash = resolvedUrl.hash || '';
-                                a.setAttribute('href', `viewer.html?file=${relPath}${hash}`);
+                                const targetUrl = `/viewer.html?file=${relPath}${hash}`;
+                                
+                                a.setAttribute('href', targetUrl);
+                                
+                                // Force page reload on click to avoid SPA history/state traps
+                                a.addEventListener('click', (e) => {
+                                    e.preventDefault();
+                                    window.location.href = targetUrl;
+                                });
                             } catch (e) {
                                 console.error('Failed to resolve relative link:', href, e);
                             }
