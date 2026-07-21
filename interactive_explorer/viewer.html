@@ -273,6 +273,21 @@
                         }
                     });
 
+                    // Resolve relative markdown links to prevent downloads
+                    document.querySelectorAll('#content a').forEach(a => {
+                        const href = a.getAttribute('href');
+                        if (href && (href.endsWith('.md') || href.includes('.md') || href.includes('.md#'))) {
+                            try {
+                                const resolvedUrl = new URL(href, window.location.origin + '/' + filePath);
+                                const relPath = resolvedUrl.pathname.substring(1);
+                                const hash = resolvedUrl.hash || '';
+                                a.setAttribute('href', `viewer.html?file=${relPath}${hash}`);
+                            } catch (e) {
+                                console.error('Failed to resolve relative link:', href, e);
+                            }
+                        }
+                    });
+
                     // Trigger Mermaid rendering
                     if (window.mermaid) {
                         if (typeof mermaid.run === 'function') {
