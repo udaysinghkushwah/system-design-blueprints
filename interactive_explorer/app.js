@@ -3,7 +3,7 @@ const systemData = {
     url_shortener: {
         title: "URL Shortener System",
         description: "High-scale unique link creation and fast redirection routing engine with multi-tier edge caching.",
-        docLink: "../level_1_core_system_design/url_shortener/url_shortener_system_design.md",
+        docLink: "viewer.html?file=level_1_core_system_design/url_shortener/url_shortener_system_design.md",
         techStack: [
             { service: "Amazon Aurora PostgreSQL", role: "Stores URL mappings with short_code as primary key for database-level uniqueness enforcement." },
             { service: "Amazon ElastiCache for Redis", role: "In-memory URL cache serving redirect lookups in < 1ms. Also used for rate limiting." },
@@ -95,7 +95,7 @@ const systemData = {
     pastebin: {
         title: "Pastebin Sharing Platform",
         description: "Metadata and file-separated storage engine supporting compressed content blobs and full-text discovery.",
-        docLink: "../level_1_core_system_design/pastebin/pastebin_system_design.md",
+        docLink: "viewer.html?file=level_1_core_system_design/pastebin/pastebin_system_design.md",
         techStack: [
             { service: "Amazon S3", role: "Content store for raw compressed paste content (zstd) with 11 nines durability." },
             { service: "Amazon Aurora PostgreSQL", role: "Stores lean paste metadata (~200 bytes/record). Partial indexes optimize expiry." },
@@ -193,7 +193,7 @@ const systemData = {
     file_storage: {
         title: "Distributed File Storage",
         description: "Scale-out block/file storage system separating control path (metadata) from high-throughput data path (blocks).",
-        docLink: "../level_1_core_system_design/file_storage/file_storage_system_design.md",
+        docLink: "viewer.html?file=level_1_core_system_design/file_storage/file_storage_system_design.md",
         techStack: [
             { service: "Amazon ECS Fargate", role: "Hosts the stateless Master Cluster managing namespace lookup, leasing, and block reports." },
             { service: "Amazon EC2 Auto Scaling", role: "Runs high-performance local NVMe storage nodes serving raw 64 MB block chunks." },
@@ -267,7 +267,7 @@ const systemData = {
     food_delivery: {
         title: "Food Delivery Architecture",
         description: "Scalable geospatial ingestion and order matchmaking engines connecting users, kitchens, and riders.",
-        docLink: "../level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md",
+        docLink: "viewer.html?file=level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md",
         techStack: [
             { service: "Amazon Aurora PostgreSQL", role: "Handles critical transactional order lifecycle, payment ledger logs, and user metadata." },
             { service: "Amazon DocumentDB", role: "Houses restaurant profiles and dynamic menus in a single document layout, avoiding SQL joins." },
@@ -351,7 +351,7 @@ const systemData = {
     dropbox: {
         title: "Dropbox Cloud Synchronization",
         description: "Delta synchronization storage system resolving conflicts at block-level via global hashes indexing.",
-        docLink: "../level_1_core_system_design/dropbox/dropbox_system_design.md",
+        docLink: "viewer.html?file=level_1_core_system_design/dropbox/dropbox_system_design.md",
         techStack: [
             { service: "Amazon ECS Fargate", role: "Hosts the metadata and block ingest orchestration tasks." },
             { service: "Amazon S3 Buckets", role: "Provides high-durability object storage for blocks. Standard lifecycles archive versions." },
@@ -431,7 +431,7 @@ const systemData = {
     parking_lot: {
         title: "Smart Parking Lot Engine",
         description: "IoT-enabled parking slot allocation, sensor telemetry processor, and billing ledger tracker.",
-        docLink: "../level_1_core_system_design/parking_lot/parking_lot_system_design.md",
+        docLink: "viewer.html?file=level_1_core_system_design/parking_lot/parking_lot_system_design.md",
         techStack: [
             { service: "AWS IoT Core", role: "Directs lightweight MQTT state updates from bay sensors." },
             { service: "AWS Lambda", role: "Processes raw sensor signals and updates Redis geospatial availability caches." },
@@ -497,7 +497,7 @@ const systemData = {
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
-        docLink: "../level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md",
         techStack: [
             { service: "Amazon OpenSearch Serverless", role: "HNSW-indexed vector search over 10M+ chunks with metadata filtering and scalar quantization." },
             { service: "Amazon OpenSearch Service", role: "BM25 sparse keyword search for exact-match retrieval, combined with dense search via RRF." },
@@ -591,7 +591,7 @@ const systemData = {
     vector_database: {
         title: "Distributed Vector Database",
         description: "Low-latency LSM-like segment space vector database. Optimizes HNSW index graphs using scalar quantization.",
-        docLink: "../level_7_ai_systems/vector_database/vector_database_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/vector_database/vector_database_system_design.md",
         techStack: [
             { service: "Amazon EC2 (r6g nodes)", role: "Holds the active in-memory HNSW index structures and executes vector calculations." },
             { service: "Amazon EBS (gp3)", role: "Provides fast local storage for sequential Write-Ahead Log (WAL) commits." },
@@ -667,7 +667,7 @@ const systemData = {
     chat_gpt: {
         title: "ChatGPT Conversational Engine",
         description: "Low-latency streaming conversation orchestrator with active memory pools and GPU inference scaling.",
-        docLink: "../level_7_ai_systems/chat_gpt/chatgpt_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/chat_gpt/chatgpt_system_design.md",
         techStack: [
             { service: "Application Load Balancer (ALB)", role: "Supports long-lived HTTP/2 chunked-transfer connections (SSE), pushing response tokens." },
             { service: "Amazon DynamoDB", role: "Stores chat histories, partitioned by session_id and sorted by created_at for sub-10ms reads." },
@@ -760,7 +760,7 @@ const systemData = {
     ai_agent_framework: {
         title: "AI Agent Framework Loop",
         description: "Stateful agent execution engine executing loops, checking checkpoints, and providing tool sandboxes.",
-        docLink: "../level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md",
         techStack: [
             { service: "AWS Lambda", role: "Provides ephemeral execution sandboxes for untrusted agent tool code." },
             { service: "Amazon Aurora PostgreSQL", role: "Logs thread checkpoints and state variables as transactional JSONB structures." },
@@ -839,7 +839,7 @@ const systemData = {
     llm_gateway: {
         title: "LLM Gateway Pipeline",
         description: "High-throughput proxy layer routing, auditing, and rate-limiting upstream LLM model transactions.",
-        docLink: "../level_7_ai_systems/llm_gateway/llm_gateway_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/llm_gateway/llm_gateway_system_design.md",
         techStack: [
             { service: "Application Load Balancer (ALB)", role: "VPC Ingress gateway proxy. Distributes incoming client HTTP/2 Completion streams." },
             { service: "Amazon ECS Fargate", role: "Hosts Go proxy worker shards to validate keys, check rate-limits, and filter completions." },
@@ -962,7 +962,7 @@ const systemData = {
     semantic_search: {
         title: "Hybrid Semantic Search Engine",
         description: "Multi-stage vector retrieval, BM25 text keyword lookup, Reciprocal Rank Fusion, and Cross-Encoder reranking.",
-        docLink: "../level_7_ai_systems/semantic_search/semantic_search_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/semantic_search/semantic_search_system_design.md",
         techStack: [
             { service: "Application Load Balancer (ALB)", role: "VPC public endpoint router directing searches to ECS containers." },
             { service: "ECS Search Service Pods", role: "Coordinates search workflows, runs RRF fusion, and calls Reranker endpoints." },
@@ -1054,7 +1054,7 @@ const systemData = {
     token_streaming: {
         title: "Real-Time Token Streaming Engine",
         description: "Low-latency HTTP/2 Server-Sent Events broker. Bypasses load balancer connection timeouts to pipeline tokens dynamically.",
-        docLink: "../level_7_ai_systems/token_streaming/token_streaming_system_design.md",
+        docLink: "viewer.html?file=level_7_ai_systems/token_streaming/token_streaming_system_design.md",
         techStack: [
             { service: "Network Load Balancer (NLB)", role: "Operates at layer 4 to preserve client TCP sockets and avoid long-lived SSE timeouts." },
             { service: "EKS Connection Pods", role: "Gateway proxy nodes holding client sockets inside non-blocking event-loop (epoll) wait queues." },
@@ -1154,7 +1154,7 @@ const systemData = {
     api_gateway: {
         title: "API Gateway Engine",
         description: "High-performance edge reverse proxy routing, auditing, and rate-limiting general client HTTP requests.",
-        docLink: "../level_8_distributed_systems/api_gateway/api_gateway_system_design.md",
+        docLink: "viewer.html?file=level_8_distributed_systems/api_gateway/api_gateway_system_design.md",
         techStack: [
             { service: "Network Load Balancer (NLB)", role: "Maps TCP connections directly to Envoy proxy tasks at the VPC boundary." },
             { service: "Amazon ECS Fargate", role: "Envoy-based reverse proxy container nodes executing validation and route filter chains." },

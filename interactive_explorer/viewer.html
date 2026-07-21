@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Design Blueprint Viewer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0b0f19;
+            --bg-card: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #ab47bc;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            line-height: 1.6;
+        }
+
+        .viewer-container {
+            width: 100%;
+            max-width: 900px;
+            padding: 40px 24px;
+            box-sizing: border-box;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+            transition: opacity 0.2s ease;
+        }
+
+        .back-btn:hover {
+            opacity: 0.8;
+        }
+
+        .blueprint-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 40px;
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Markdown rendering styles */
+        #content h1 {
+            font-size: 2.2rem;
+            margin-top: 0;
+            margin-bottom: 24px;
+            font-weight: 700;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            background: linear-gradient(to right, #ffffff, #9ca3af);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        #content h2 {
+            font-size: 1.6rem;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+
+        #content h3 {
+            font-size: 1.25rem;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        #content p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            margin-bottom: 20px;
+        }
+
+        #content code {
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(30, 41, 59, 0.6);
+            color: #38bdf8;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        #content pre {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 24px 0;
+        }
+
+        #content pre code {
+            background: transparent;
+            padding: 0;
+            color: #38bdf8;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        #content ul, #content ol {
+            color: var(--text-secondary);
+            margin-bottom: 24px;
+            padding-left: 24px;
+        }
+
+        #content li {
+            margin-bottom: 8px;
+        }
+
+        #content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+        }
+
+        #content th, #content td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: left;
+        }
+
+        #content th {
+            background: rgba(30, 41, 59, 0.8);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        #content td {
+            color: var(--text-secondary);
+        }
+
+        #content blockquote {
+            border-left: 4px solid var(--accent-blue);
+            background: rgba(59, 130, 246, 0.08);
+            margin: 24px 0;
+            padding: 16px 24px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        #content blockquote p {
+            margin: 0;
+            color: var(--text-primary);
+        }
+
+        #content hr {
+            border: 0;
+            border-top: 1px solid var(--border-color);
+            margin: 40px 0;
+        }
+
+        #content img {
+            max-width: 100%;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            margin: 24px 0;
+        }
+
+        #content a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        #content a:hover {
+            text-decoration: underline;
+        }
+    </style>
+    <!-- Marked.js library for markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div class="viewer-container">
+        <a href="index.html" class="back-btn">← Back to Explorer Dashboard</a>
+        <article class="blueprint-card">
+            <div id="content">Loading blueprint document...</div>
+        </article>
+    </div>
+
+    <script>
+        // Extract document path from URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const filePath = urlParams.get('file');
+
+        if (filePath) {
+            // Load and parse the markdown document
+            fetch(`/${filePath}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('File not found');
+                    }
+                    return response.text();
+                })
+                .then(markdown => {
+                    // Render markdown using Marked.js
+                    document.getElementById('content').innerHTML = marked.parse(markdown);
+                    // Dynamically set page title based on the first H1
+                    const h1 = document.querySelector('#content h1');
+                    if (h1) {
+                        document.title = h1.textContent + " - Blueprint Viewer";
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('content').innerHTML = `
+                        <h2>Error Loading Document</h2>
+                        <p>The document file <code>${filePath}</code> could not be found or loaded.</p>
+                        <p>Please check that the file exists in the repository and the local server is running.</p>
+                    `;
+                });
+        } else {
+            document.getElementById('content').innerHTML = `
+                <h2>No Document Specified</h2>
+                <p>Please specify a document to view using the <code>?file=</code> parameter.</p>
+            `;
+        }
+    </script>
+</body>
+</html>
