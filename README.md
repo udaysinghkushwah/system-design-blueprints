@@ -34,9 +34,9 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | # | Topic | Status |
 |---|-------|--------|
-| 1 | Design a URL Shortener | ✅ [Blueprint](./url_shortener/url_shortener_system_design.md) |
-| 2 | Design Pastebin | ✅ [Blueprint](./pastebin/pastebin_system_design.md) |
-| 3 | Design File Storage System | ✅ [Blueprint](./file_storage/file_storage_system_design.md) |
+| 1 | Design a URL Shortener | ✅ [Blueprint](./level_1_core_system_design/url_shortener/url_shortener_system_design.md) |
+| 2 | Design Pastebin | ✅ [Blueprint](./level_1_core_system_design/pastebin/pastebin_system_design.md) |
+| 3 | Design File Storage System | ✅ [Blueprint](./level_1_core_system_design/file_storage/file_storage_system_design.md) |
 | 4 | Design Dropbox | ⬜ Planned |
 | 5 | Design Parking Lot | ⬜ Planned |
 | 6 | Design Library Management System | ⬜ Planned |
@@ -83,7 +83,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | # | Topic | Status |
 |---|-------|--------|
 | 1 | Design Uber | ⬜ Planned |
-| 2 | Design Food Delivery Platform | ✅ [Blueprint](./food_delivery/food_delivery_system_design.md) |
+| 2 | Design Food Delivery Platform | ✅ [Blueprint](./level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md) |
 | 3 | Design Blinkit / Zepto | ⬜ Planned |
 | 4 | Design Rider Dispatch | ⬜ Planned |
 | 5 | Design ETA Calculation | ⬜ Planned |
@@ -119,9 +119,9 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | # | Topic | Status |
 |---|-------|--------|
-| 1 | Design ChatGPT | ✅ [Blueprint](./chat_gpt/chatgpt_system_design.md) |
-| 2 | Design RAG Pipeline | ✅ [Blueprint](./rag_pipeline/rag_pipeline_system_design.md) |
-| 3 | Design Vector Database | ✅ [Blueprint](./vector_database/vector_database_system_design.md) |
+| 1 | Design ChatGPT | ✅ [Blueprint](./level_7_ai_systems/chat_gpt/chatgpt_system_design.md) |
+| 2 | Design RAG Pipeline | ✅ [Blueprint](./level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md) |
+| 3 | Design Vector Database | ✅ [Blueprint](./level_7_ai_systems/vector_database/vector_database_system_design.md) |
 | 4 | Design AI Agent Framework | ⬜ Planned |
 | 5 | Design LLM Gateway | ⬜ Planned |
 | 6 | Design Semantic Search | ⬜ Planned |
@@ -279,7 +279,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 ### 1. URL Shortener System Design
 A production-grade system design for a high-scale URL shortening service like **Bitly** or **TinyURL**. Covers unique key generation (KGS), multi-layer caching (CDN → Redis → PostgreSQL), real-time click analytics, and 301 vs 302 redirect trade-offs.
 
-* **Documentation:** [URL Shortener System Design (url_shortener_system_design.md)](./url_shortener/url_shortener_system_design.md)
+* **Documentation:** [URL Shortener System Design (url_shortener_system_design.md)](./level_1_core_system_design/url_shortener/url_shortener_system_design.md)
 
 #### URL Shortener Tech Stack Details (with AWS Service Mapping)
 * **PostgreSQL (Amazon Aurora PostgreSQL):** Stores URL mappings with `short_code` as primary key for database-level uniqueness enforcement. Aurora Global Database provides cross-region replication with $< 1\text{s}$ lag.
@@ -293,19 +293,19 @@ A production-grade system design for a high-scale URL shortening service like **
 ##### A. High-Level System Architecture
 Overview of clients, CDN edge layer, API gateway, core services (Redirect, URL Creation, KGS), caching layer, and analytics pipeline.
 
-![URL Shortener System Architecture](./url_shortener/url_shortener_system_architecture.png)
+![URL Shortener System Architecture](./level_1_core_system_design/url_shortener/url_shortener_system_architecture.png)
 
 ##### B. Redirect Hot Path — Multi-Layer Cache Strategy
 Visual flow showing the 3-layer caching strategy (CDN → Redis → PostgreSQL) with latency targets and async analytics event publishing.
 
-![URL Shortener Redirect Flow](./url_shortener/url_shortener_redirect_flow.png)
+![URL Shortener Redirect Flow](./level_1_core_system_design/url_shortener/url_shortener_redirect_flow.png)
 
 ---
 
 ### 2. Pastebin System Design
 A production-grade system design for a high-scale text sharing platform like **Pastebin** or **GitHub Gist**. Covers metadata/content separation (PostgreSQL + S3), multi-layer caching with syntax highlighting, content compression, expiration policies, and content moderation.
 
-* **Documentation:** [Pastebin System Design (pastebin_system_design.md)](./pastebin/pastebin_system_design.md)
+* **Documentation:** [Pastebin System Design (pastebin_system_design.md)](./level_1_core_system_design/pastebin/pastebin_system_design.md)
 
 #### Pastebin Tech Stack Details (with AWS Service Mapping)
 * **Amazon S3 (Content Store):** Stores compressed paste content (zstd) with 11 nines durability. S3 Intelligent-Tiering auto-moves old pastes to cheaper storage. Cross-Region Replication ensures DR readiness.
@@ -319,19 +319,19 @@ A production-grade system design for a high-scale text sharing platform like **P
 ##### A. High-Level System Architecture
 Overview of clients, CDN, gateway, core services (Read, Write, KGS, Search), data layer (Redis, PostgreSQL, S3), and analytics pipeline.
 
-![Pastebin System Architecture](./pastebin/pastebin_system_architecture.png)
+![Pastebin System Architecture](./level_1_core_system_design/pastebin/pastebin_system_architecture.png)
 
 ##### B. Paste Retrieval — Multi-Layer Cache & Content Assembly
 Visual flow showing the 3-layer cache strategy (CDN → Redis → PostgreSQL + S3 parallel fetch) with content assembly and syntax highlighting.
 
-![Pastebin Read Path](./pastebin/pastebin_read_path.png)
+![Pastebin Read Path](./level_1_core_system_design/pastebin/pastebin_read_path.png)
 
 ---
 
 ### 3. Distributed File Storage System Design
 A production-grade distributed block/file storage system comparable to HDFS or GFS. Features complete separation of metadata (control plane) and physical data blocks (data plane), rack-aware replication pipelines, block report reconciliation, and sub-millisecond in-memory namespace operations.
 
-* **Documentation:** [Distributed File Storage System Design (file_storage_system_design.md)](./file_storage/file_storage_system_design.md)
+* **Documentation:** [Distributed File Storage System Design (file_storage_system_design.md)](./level_1_core_system_design/file_storage/file_storage_system_design.md)
 
 #### File Storage Tech Stack Details (with AWS Service Mapping)
 * **Amazon ECS Fargate:** Hosts the stateless Master Cluster managing namespace lookup, leasing, and block reports.
@@ -344,16 +344,16 @@ A production-grade distributed block/file storage system comparable to HDFS or G
 ##### A. High-Level Distributed File Storage Architecture
 Visual overview of the client, master metadata server, journaling log, and pipelined chunk server replicas.
 
-![Distributed File Storage Architecture](./file_storage/file_storage_system_architecture.png)
+![Distributed File Storage Architecture](./level_1_core_system_design/file_storage/file_storage_system_architecture.png)
 
 ---
 
 ### 4. Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
-* **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./food_delivery/food_delivery_system_design.md)
-* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (food_delivery_api_spec.yaml)](./food_delivery/food_delivery_api_spec.yaml)
-* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./food_delivery/mock_server.py) (run using `python3 food_delivery/mock_server.py`)
+* **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (food_delivery_api_spec.yaml)](./level_4_ride_sharing_delivery/food_delivery/food_delivery_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_4_ride_sharing_delivery/food_delivery/mock_server.py) (run using `python3 food_delivery/mock_server.py`)
 
 #### Food Delivery Tech Stack Details (with AWS Service Mapping)
 * **PostgreSQL (Amazon Aurora PostgreSQL):** Handles critical transactional order lifecycle, payment ledger logs, and user metadata. Configured with Aurora Global Database for multi-region active-passive failover under 1 minute.
@@ -368,39 +368,39 @@ A production-grade, end-to-end system design for a high-scale food delivery plat
 ##### A. High-Level System Architecture (Generic)
 Overview of clients, gateway, microservices layer, message brokers, and databases.
 
-![Food Delivery System Architecture](./food_delivery/food_delivery_system_architecture_v2.png)
+![Food Delivery System Architecture](./level_4_ride_sharing_delivery/food_delivery/food_delivery_system_architecture_v2.png)
 
 ##### B. Real-Time Ingestion & Live Tracking Pipeline (Generic)
 Visual flow of coordinates streamed from riders to Redis Geo (hot cache), Kafka, Cassandra (historical logs), and WebSocket push connections to tracking users.
 
-![Food Delivery Live Tracking](./food_delivery/food_delivery_live_tracking_v2.png)
+![Food Delivery Live Tracking](./level_4_ride_sharing_delivery/food_delivery/food_delivery_live_tracking_v2.png)
 
 ##### C. Rider Matching & Dispatch Engine (Generic)
 Visual explanation of the bipartite graph match loop using candidate discovery, multi-criteria weight functions (ETA, Travel Distance, Rating), and Hungarian Algorithm solvers.
 
-![Food Delivery Rider Matching](./food_delivery/food_delivery_rider_matching_v2.png)
+![Food Delivery Rider Matching](./level_4_ride_sharing_delivery/food_delivery/food_delivery_rider_matching_v2.png)
 
 ##### D. AWS Cloud-Native System Architecture
 Cloud-native deployment mapping microservices to Amazon EKS/ECS, databases to Aurora/DocumentDB, and streaming to Amazon MSK.
 
-![Food Delivery AWS System Architecture](./food_delivery/food_delivery_system_architecture_v3.png)
+![Food Delivery AWS System Architecture](./level_4_ride_sharing_delivery/food_delivery/food_delivery_system_architecture_v3.png)
 
 ##### E. AWS-Native Live Ingestion & Tracking Pipeline
 Live coordinate ingestion using AWS IoT Core or Network Load Balancer (NLB) to Amazon ElastiCache and Amazon Keyspaces (Cassandra).
 
-![Food Delivery AWS Live Tracking](./food_delivery/food_delivery_live_tracking_v3.png)
+![Food Delivery AWS Live Tracking](./level_4_ride_sharing_delivery/food_delivery/food_delivery_live_tracking_v3.png)
 
 ##### F. AWS-Native Rider Matching & Dispatch Engine
 Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and geolocations from Amazon ElastiCache.
 
-![Food Delivery AWS Rider Matching](./food_delivery/food_delivery_rider_matching_v3.png)
+![Food Delivery AWS Rider Matching](./level_4_ride_sharing_delivery/food_delivery/food_delivery_rider_matching_v3.png)
 
 ---
 
 ### 5. RAG Pipeline System Design
 A production-grade system design for a **Retrieval-Augmented Generation** pipeline — the backbone of knowledge-grounded AI systems. Covers document ingestion, parent-child chunking, hybrid retrieval (dense + BM25), cross-encoder re-ranking, prompt assembly, and grounded LLM generation with citations.
 
-* **Documentation:** [RAG Pipeline System Design (rag_pipeline_system_design.md)](./rag_pipeline/rag_pipeline_system_design.md)
+* **Documentation:** [RAG Pipeline System Design (rag_pipeline_system_design.md)](./level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md)
 
 #### RAG Pipeline Tech Stack Details (with AWS Service Mapping)
 * **Vector Database (Amazon OpenSearch Serverless):** HNSW-indexed vector search over 10M+ chunks with metadata filtering and scalar quantization for 4x storage reduction.
@@ -414,19 +414,19 @@ A production-grade system design for a **Retrieval-Augmented Generation** pipeli
 ##### A. High-Level RAG Architecture — Ingestion & Query Planes
 Two-plane design: Offline Ingestion Plane (parse → chunk → embed → index) and Online Query Plane (embed → retrieve → re-rank → generate).
 
-![RAG Pipeline System Architecture](./rag_pipeline/rag_pipeline_system_architecture.png)
+![RAG Pipeline System Architecture](./level_7_ai_systems/rag_pipeline/rag_pipeline_system_architecture.png)
 
 ##### B. RAG Query Pipeline — Hybrid Retrieval + Re-ranking + Generation
 End-to-end query flow showing parallel dense/sparse retrieval, RRF fusion, cross-encoder re-ranking, prompt assembly, and LLM streaming with latency annotations.
 
-![RAG Query Flow](./rag_pipeline/rag_query_flow.png)
+![RAG Query Flow](./level_7_ai_systems/rag_pipeline/rag_query_flow.png)
 
 ---
 
 ### 6. Vector Database System Design
 A production-grade system design for a real-time, low-latency **Vector Database** (comparable to Qdrant or Milvus). Highlights LSM-tree segment architectures, metadata pre-filtering during graph traversal, scalar quantization calculations (reducing vector size from float32 to int8 for a 72% RAM footprint saving), and distributed shard coordinating mechanisms.
 
-* **Documentation:** [Vector Database System Design (vector_database_system_design.md)](./vector_database/vector_database_system_design.md)
+* **Documentation:** [Vector Database System Design (vector_database_system_design.md)](./level_7_ai_systems/vector_database/vector_database_system_design.md)
 
 #### Vector Database Tech Stack Details (with AWS Service Mapping)
 * **Amazon EC2 (r6g memory-optimized nodes):** Holds the active in-memory HNSW index structures and executes vector/cosine-similarity calculations.
@@ -439,14 +439,14 @@ A production-grade system design for a real-time, low-latency **Vector Database*
 ##### A. High-Level Distributed Vector Database Architecture
 Visual layout showing proxy query routing, LSM-like mutable mem-segments, background compactor building the HNSW graphs, and immutable disk segments.
 
-![Distributed Vector Database Architecture](./vector_database/vector_database_system_architecture.png)
+![Distributed Vector Database Architecture](./level_7_ai_systems/vector_database/vector_database_system_architecture.png)
 
 ---
 
 ### 7. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
-* **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt/chatgpt_system_design.md)
+* **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./level_7_ai_systems/chat_gpt/chatgpt_system_design.md)
 
 #### ChatGPT Tech Stack Details (with AWS Service Mapping)
 * **Server-Sent Events (ALB to ECS/EKS Streams):** Uses Application Load Balancers to support long-lived HTTP/2 chunked-transfer connections (SSE), pushing response tokens text-by-text to the client without API Gateway timeouts.
@@ -460,22 +460,22 @@ A production-grade system design for a real-time, low-latency conversational AI 
 ##### A. High-Level ChatGPT Architecture (Generic)
 Overview of clients, gateway, Query Orchestrator, context engine, vector storage, and GPU cluster.
 
-![ChatGPT System Architecture](./chat_gpt/chatgpt_system_architecture.png)
+![ChatGPT System Architecture](./level_7_ai_systems/chat_gpt/chatgpt_system_architecture.png)
 
 ##### B. Low-Latency Token Streaming & GPU Inference Flow (Generic)
 Visual flow of HTTP/2 SSE streaming connections, Triton/vLLM batch queuing, and PagedAttention block cache partitioning.
 
-![ChatGPT Token Streaming](./chat_gpt/chatgpt_token_streaming.png)
+![ChatGPT Token Streaming](./level_7_ai_systems/chat_gpt/chatgpt_token_streaming.png)
 
 ##### C. RAG & Context Window Memory Pipeline (Generic)
 Visual flow of document indexing, semantic nearest-neighbor vector search, conversation context windows, and secondary LLM summarization.
 
-![ChatGPT RAG Context](./chat_gpt/chatgpt_rag_context.png)
+![ChatGPT RAG Context](./level_7_ai_systems/chat_gpt/chatgpt_rag_context.png)
 
 ##### D. AWS Cloud-Native ChatGPT Architecture
 Cloud-native deployment on AWS routing SSE streams through Application Load Balancers, RAG via OpenSearch Vector Engine, and inference on Amazon EKS GPU clusters.
 
-![ChatGPT AWS System Architecture](./chat_gpt/chatgpt_system_architecture_v2.png)
+![ChatGPT AWS System Architecture](./level_7_ai_systems/chat_gpt/chatgpt_system_architecture_v2.png)
 
 ---
 
