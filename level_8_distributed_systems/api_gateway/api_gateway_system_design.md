@@ -227,7 +227,7 @@ graph TD
             ECS -->|Validate Keys & Token Checks| Redis[(Amazon ElastiCache for Redis)]
             ECS -->|Dynamic Route Registries| DynamoDB[(Amazon DynamoDB)]
         end
-    </g>
+    end
 
     %% Auth Validation External
     ECS -->|OAuth Token Validation| Cognito[Amazon Cognito JWT Store]
