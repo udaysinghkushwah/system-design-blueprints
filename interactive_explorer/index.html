@@ -15,28 +15,93 @@
                 <span class="logo-dot"></span>
                 <h2>Blueprint Explorer</h2>
             </div>
-            <nav class="system-list">
-                <button class="nav-item active" data-system="llm_gateway">
-                    <span class="nav-icon">🌐</span>
-                    <span class="nav-label">LLM Gateway</span>
-                </button>
-                <button class="nav-item" data-system="semantic_search">
-                    <span class="nav-icon">🔍</span>
-                    <span class="nav-label">Semantic Search</span>
-                </button>
-                <button class="nav-item" data-system="token_streaming">
-                    <span class="nav-icon">⚡</span>
-                    <span class="nav-label">Token Streaming</span>
-                </button>
-                <button class="nav-item" data-system="vector_database">
-                    <span class="nav-icon">💾</span>
-                    <span class="nav-label">Vector Database</span>
-                </button>
-                <button class="nav-item" data-system="api_gateway">
-                    <span class="nav-icon">🚪</span>
-                    <span class="nav-label">API Gateway</span>
-                </button>
-            </nav>
+            
+            <div class="sidebar-scroll">
+                <!-- Level 1 -->
+                <div class="nav-group">
+                    <h3>Level 1 – Core Design</h3>
+                    <nav class="system-list">
+                        <button class="nav-item" data-system="url_shortener">
+                            <span class="nav-icon">🔗</span>
+                            <span class="nav-label">URL Shortener</span>
+                        </button>
+                        <button class="nav-item" data-system="pastebin">
+                            <span class="nav-icon">📋</span>
+                            <span class="nav-label">Pastebin</span>
+                        </button>
+                        <button class="nav-item" data-system="file_storage">
+                            <span class="nav-icon">🗄️</span>
+                            <span class="nav-label">File Storage</span>
+                        </button>
+                        <button class="nav-item" data-system="dropbox">
+                            <span class="nav-icon">📂</span>
+                            <span class="nav-label">Dropbox Sync</span>
+                        </button>
+                        <button class="nav-item" data-system="parking_lot">
+                            <span class="nav-icon">🅿️</span>
+                            <span class="nav-label">Parking Lot</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Level 4 -->
+                <div class="nav-group">
+                    <h3>Level 4 – Delivery</h3>
+                    <nav class="system-list">
+                        <button class="nav-item" data-system="food_delivery">
+                            <span class="nav-icon">🍔</span>
+                            <span class="nav-label">Food Delivery</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Level 7 -->
+                <div class="nav-group">
+                    <h3>Level 7 – AI Systems</h3>
+                    <nav class="system-list">
+                        <button class="nav-item" data-system="rag_pipeline">
+                            <span class="nav-icon">🧠</span>
+                            <span class="nav-label">RAG Pipeline</span>
+                        </button>
+                        <button class="nav-item" data-system="vector_database">
+                            <span class="nav-icon">💾</span>
+                            <span class="nav-label">Vector Database</span>
+                        </button>
+                        <button class="nav-item" data-system="chat_gpt">
+                            <span class="nav-icon">🤖</span>
+                            <span class="nav-label">ChatGPT Core</span>
+                        </button>
+                        <button class="nav-item" data-system="ai_agent_framework">
+                            <span class="nav-icon">🤖</span>
+                            <span class="nav-label">AI Agent Loop</span>
+                        </button>
+                        <button class="nav-item active" data-system="llm_gateway">
+                            <span class="nav-icon">🌐</span>
+                            <span class="nav-label">LLM Gateway</span>
+                        </button>
+                        <button class="nav-item" data-system="semantic_search">
+                            <span class="nav-icon">🔍</span>
+                            <span class="nav-label">Semantic Search</span>
+                        </button>
+                        <button class="nav-item" data-system="token_streaming">
+                            <span class="nav-icon">⚡</span>
+                            <span class="nav-label">Token Streaming</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Level 8 -->
+                <div class="nav-group">
+                    <h3>Level 8 – Distributed</h3>
+                    <nav class="system-list">
+                        <button class="nav-item" data-system="api_gateway">
+                            <span class="nav-icon">🚪</span>
+                            <span class="nav-label">API Gateway</span>
+                        </button>
+                    </nav>
+                </div>
+            </div>
+
             <div class="sidebar-footer">
                 <button id="simulate-btn" class="btn primary-btn">Simulate Query Flow</button>
             </div>
