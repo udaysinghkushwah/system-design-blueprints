@@ -167,6 +167,34 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+### AWS Cloud-Native Architecture Flowchart
+
+```mermaid
+graph TD
+    %% Ingress
+    User[Web / Mobile Client] -->|Route 53| NLB[Amazon Network Load Balancer]
+
+    %% VPC
+    subgraph VPC ["AWS Virtual Private Cloud (VPC)"]
+        %% EKS Connection Nodes
+        subgraph ConnectionTier ["EKS Connection Gateway Pods"]
+            NLB --> EKS_GW[Go-Epoll SSE Stream Handler Pod]
+        end
+
+        %% Decoupling Bus
+        subgraph EventBus ["Decoupling Subnet"]
+            EKS_GW -->|Read Stream Events| Redis[(Amazon ElastiCache for Redis Pub/Sub)]
+        end
+
+        %% GPU Inference Cluster
+        subgraph ComputeTier ["EKS GPU Inference Cluster"]
+            EKS_GW -->|Publish Prompt Task| SQS[Amazon SQS Queue]
+            SQS --> vLLM[vLLM Inference Server EC2 GPU Instances]
+            vLLM -->|Publish Generated Tokens| Redis
+        end
+    end
+```
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |

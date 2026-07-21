@@ -213,6 +213,37 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+### AWS Cloud-Native Architecture Flowchart
+
+```mermaid
+graph TD
+    %% Clients
+    Client[Client Apps] -->|HTTP/2 Streams| ALB[Application Load Balancer]
+
+    %% VPC Border
+    subgraph VPC ["AWS Virtual Private Cloud (VPC)"]
+        %% ECS Compute Cluster
+        subgraph ComputeCluster ["ECS Fargate Proxy Shards"]
+            ALB --> ECS[Amazon ECS Proxy Container Task]
+        end
+
+        %% Database & Caching Private Subnets
+        subgraph DataSubnets ["Metadata & Caching Tier"]
+            ECS -->|Budget checks| DynamoDB[(Amazon DynamoDB - Key Config)]
+            ECS -->|TPM Sliding-Window & Semantic Cache| Redis[(Amazon ElastiCache for Redis)]
+        end
+    end
+
+    %% Async Logging Pipeline
+    ECS -->|Audit Stream| Firehose[Amazon Kinesis Data Firehose]
+    Firehose --> S3[(Amazon S3 Metrics Lake)]
+    S3 --> Athena[Amazon Athena Query Engine]
+
+    %% Upstreams
+    ECS -->|Priority 1| Bedrock[Amazon Bedrock LLM Gateway]
+    ECS -->|Priority 2 Fallback| OpenAI[OpenAI API Endpoint]
+```
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |

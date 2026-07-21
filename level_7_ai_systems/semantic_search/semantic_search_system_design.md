@@ -188,6 +188,34 @@ sequenceDiagram
 
 ## 10. AWS Cloud-Native Implementation
 
+### AWS Cloud-Native Architecture Flowchart
+
+```mermaid
+graph TD
+    %% Ingress
+    User[Search Client] -->|Route 53| ALB[Application Load Balancer]
+
+    %% VPC
+    subgraph VPC ["AWS Virtual Private Cloud (VPC)"]
+        %% ECS Search Nodes
+        subgraph SearchNodes ["ECS Fargate Search Shards"]
+            ALB --> ECS[Amazon ECS Search Service Pod]
+            ECS -->|Fast Metadata Cache| Redis[(Amazon ElastiCache for Redis)]
+        end
+
+        %% Database Tier
+        subgraph DatabaseTier ["Database & Inference Subnet"]
+            ECS -->|1. Hybrid BM25 & KNN Vector Query| OpenSearch[(Amazon OpenSearch Service)]
+            ECS -->|2. Multi-Candidate Re-scoring| SageMaker[Amazon SageMaker Serverless Inference]
+        end
+    end
+
+    %% Ingestion Pipeline
+    CatalogUpdate[Catalog Ingest API] --> MSK{Amazon MSK Kafka Cluster}
+    MSK --> ECS_Indexer[Amazon ECS Indexer Service]
+    ECS_Indexer --> OpenSearch
+```
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |

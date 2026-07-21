@@ -234,6 +234,44 @@ sequenceDiagram
 
 ![Stateful Agent Execution Loop AWS Workflow](./ai_agent_aws_workflow.png)
 
+### AWS Cloud-Native Architecture Flowchart
+
+```mermaid
+graph TD
+    %% Global Ingress
+    User[Client App] -->|HTTPS Requests| Route53[Route 53 Global DNS]
+    Route53 --> WAF[AWS WAF Security Screen]
+    WAF --> APIGW[Amazon API Gateway]
+
+    %% VPC Core Boundary
+    subgraph VPC ["AWS Virtual Private Cloud (VPC)"]
+        %% Public / ALB
+        APIGW --> ALB[Application Load Balancer]
+        
+        %% Private Subnet Computes
+        subgraph PrivateSubnet ["Private App Subnet"]
+            ALB --> ECS[Amazon ECS / EKS Agent Orchestrator Cluster]
+            ECS -->|Compute Context| Memory[Amazon ElastiCache for Redis]
+        end
+
+        %% Database Tier Subnet
+        subgraph DatabaseSubnet ["Isolated Database Subnet"]
+            ECS -->|Checkpoint State updates| Aurora[(Amazon Aurora PostgreSQL Serverless)]
+            Aurora -->|Cross-Region Async Sync| AuroraBackup[(Amazon Aurora Secondary Backup)]
+        end
+        
+        %% Isolated Exec Sandbox Subnet
+        subgraph SandboxSubnet ["Isolated Tool Sandbox Subnet (No Internet egress)"]
+            ECS -->|Invoke code run| Lambda[AWS Lambda Sandbox Tasks]
+        end
+    end
+
+    %% External APIs
+    ECS -->|Execute Model Steps| Bedrock[Amazon Bedrock LLM Gateway]
+    ECS -->|Alert human review| SNS[Amazon SNS Notification Broker]
+    SNS --> Webhook[Human Review Gate Webhook]
+```
+
 ### AWS Service Mapping & Rationale
 
 | Generic Component | AWS Service | Design Details & Rationale |
