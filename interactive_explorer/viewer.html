@@ -187,9 +187,22 @@
         #content a:hover {
             text-decoration: underline;
         }
+
+        /* Mermaid diagram styles */
+        .mermaid {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            margin: 24px 0;
+        }
     </style>
     <!-- Marked.js library for markdown parsing -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Mermaid.js library for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
 </head>
 <body>
     <div class="viewer-container">
@@ -200,6 +213,37 @@
     </div>
 
     <script>
+        // Initialize Mermaid
+        if (window.mermaid) {
+            mermaid.initialize({ 
+                startOnLoad: false, 
+                theme: 'dark',
+                themeVariables: {
+                    background: '#0f172a',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#f3f4f6',
+                    lineColor: '#3b82f6'
+                }
+            });
+        }
+
+        // Configure custom marked.js renderer for Mermaid blocks
+        const renderer = {
+            code(code, infostring) {
+                let text = code;
+                let lang = infostring;
+                if (code && typeof code === 'object') {
+                    text = code.text;
+                    lang = code.lang;
+                }
+                if (lang === 'mermaid') {
+                    return `<div class="mermaid">${text}</div>`;
+                }
+                return `<pre><code>${text}</code></pre>`;
+            }
+        };
+        marked.use({ renderer });
+
         // Extract document path from URL query parameters
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('file');
@@ -228,6 +272,15 @@
                             img.setAttribute('src', '/' + folderPath + cleanSrc);
                         }
                     });
+
+                    // Trigger Mermaid rendering
+                    if (window.mermaid) {
+                        if (typeof mermaid.run === 'function') {
+                            mermaid.run();
+                        } else if (typeof mermaid.init === 'function') {
+                            mermaid.init();
+                        }
+                    }
 
                     // Dynamically set page title based on the first H1
                     const h1 = document.querySelector('#content h1');
