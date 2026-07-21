@@ -42,6 +42,8 @@ This document details the production-grade system design for a high-concurrency 
 
 The streaming architecture segregates the **Heavy Compute Tier** (GPU Inference Servers) from the **Persistent Connection Tier** (SSE Connection Gateways).
 
+![Token Streaming Architecture](./token_streaming_system_architecture.png)
+
 ### System Architecture Flowchart
 ```mermaid
 graph TD

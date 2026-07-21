@@ -39,6 +39,8 @@ This document details the production-grade system design for a high-scale **Sema
 
 The semantic search architecture decouples document ingestion indexing from the low-latency search execution path.
 
+![Semantic Search Architecture](./semantic_search_system_architecture.png)
+
 ### System Architecture Flowchart
 ```mermaid
 graph TD

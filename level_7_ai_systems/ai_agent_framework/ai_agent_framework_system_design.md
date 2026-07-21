@@ -55,6 +55,8 @@ This document details the production-grade system design for an enterprise **AI 
 
 The architecture decouples the stateful coordinator (State Engine) from the sandboxed environment executing client/agent tools.
 
+![AI Agent Framework Architecture](./ai_agent_framework_system_architecture.png)
+
 ### System Architecture Flowchart
 ```mermaid
 graph TD

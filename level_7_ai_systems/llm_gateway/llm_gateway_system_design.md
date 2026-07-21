@@ -46,6 +46,8 @@ This document details the production-grade system design for an enterprise **LLM
 
 The LLM Gateway is designed as a stateless proxy cluster backed by an in-memory caching and metrics store.
 
+![LLM Gateway Architecture](./llm_gateway_system_architecture.png)
+
 ### System Architecture Flowchart
 ```mermaid
 graph TD

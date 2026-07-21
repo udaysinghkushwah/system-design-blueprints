@@ -494,6 +494,13 @@ A production-grade stateful agent runtime framework (comparable to LangGraph or 
 * **Amazon ElastiCache for Redis:** Stores temporary active context variables and manages locks for active threads.
 * **Amazon Bedrock:** Serves as the backplane model provider.
 
+#### AI Agent Framework Architecture Diagrams
+
+##### A. High-Level AI Agent Framework Architecture
+Overview of app clients, API gateway, state checkpoint store, short/long-term memory services, and secure code sandbox environments.
+
+![AI Agent Framework Architecture](./level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_architecture.png)
+
 ---
 
 ### 9. LLM Gateway System Design
@@ -507,6 +514,13 @@ A high-throughput enterprise gateway proxy layers between application clients an
 * **Amazon DynamoDB:** Persistent tenant API keys metadata configuration database.
 * **Amazon S3 & Kinesis Firehose:** Asynchronous ledger logs streaming pipeline.
 
+#### LLM Gateway Architecture Diagrams
+
+##### A. High-Level LLM Gateway Architecture
+Overview of client routing pipeline, authentication verify filters, semantic cache checkpoints, and model provider load balancer routing.
+
+![LLM Gateway Architecture](./level_7_ai_systems/llm_gateway/llm_gateway_system_architecture.png)
+
 ---
 
 ### 10. Semantic Search System Design
@@ -519,6 +533,13 @@ A production-grade, highly precise multi-stage retrieval hybrid search engine. C
 * **Amazon SageMaker Serverless:** Runs cross-encoder models for top-50 to top-10 candidate precision refinement.
 * **Amazon MSK:** Pipelines catalog ingestion updates asynchronously to avoid search index lock congestion.
 
+#### Semantic Search Architecture Diagrams
+
+##### A. High-Level Hybrid Semantic Search Engine Architecture
+Visual layout detailing twin bi-encoder dense and BM25 sparse search indices, reciprocal rank fusion, and SageMaker cross-encoder re-ranking.
+
+![Semantic Search Architecture](./level_7_ai_systems/semantic_search/semantic_search_system_architecture.png)
+
 ---
 
 ### 11. Token Streaming System Design
@@ -530,6 +551,13 @@ A high-concurrency real-time stream broker optimized for pushing token generatio
 * **Network Load Balancer (NLB):** Essential for routing millions of long-lived HTTP/2 TCP streams.
 * **Amazon EKS (EC2 C6g Instances):** Runs Go/Rust connection gateway daemons using non-blocking Epoll loops for memory-efficient concurrency.
 * **Amazon ElastiCache for Redis:** Decouples GPU inference events via Redis Pub/Sub topics.
+
+#### Token Streaming Architecture Diagrams
+
+##### A. High-Level Token Streaming Architecture
+Visual overview showing high-throughput NLB, Epoll connection gateways, and decouple publish/subscribe topics.
+
+![Token Streaming Architecture](./level_7_ai_systems/token_streaming/token_streaming_system_architecture.png)
 
 ---
 
