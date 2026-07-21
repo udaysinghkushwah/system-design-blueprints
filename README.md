@@ -22,23 +22,25 @@ We have built a premium, interactive web dashboard to explore the AWS Cloud-Nati
 
 - [🗺️ System Design Roadmap](#️-system-design-roadmap)
 - [📂 Completed Blueprints](#-completed-blueprints)
-  - [🔗 URL Shortener System Design](#1-url-shortener-system-design)
-  - [📋 Pastebin System Design](#2-pastebin-system-design)
-  - [🗄️ Distributed File Storage System Design](#3-distributed-file-storage-system-design)
-  - [🍔 Food Delivery System Design](#4-food-delivery-system-design)
-  - [📂 Dropbox System Design](#5-dropbox-system-design)
-  - [🅿️ Smart Parking Lot System Design](#6-smart-parking-lot-system-design)
-  - [🧠 RAG Pipeline System Design](#7-rag-pipeline-system-design)
-  - [💾 Vector Database System Design](#8-vector-database-system-design)
-  - [🤖 ChatGPT System Design](#9-chatgpt-system-design)
-  - [🤖 AI Agent Framework System Design](#10-ai-agent-framework-system-design)
-  - [🌐 LLM Gateway System Design](#11-llm-gateway-system-design)
-  - [🔍 Semantic Search System Design](#12-semantic-search-system-design)
-  - [⚡ Token Streaming System Design](#13-token-streaming-system-design)
-  - [🌐 API Gateway System Design](#14-api-gateway-system-design)
+  - **Level 1 – Core System Design**
+    - [🔗 URL Shortener System Design](#11-url-shortener-system-design)
+    - [📋 Pastebin System Design](#12-pastebin-system-design)
+    - [🗄️ Distributed File Storage System Design](#13-distributed-file-storage-system-design)
+    - [📂 Dropbox System Design](#14-dropbox-system-design)
+    - [🅿️ Smart Parking Lot System Design](#15-smart-parking-lot-system-design)
+  - **Level 4 – Ride Sharing & Delivery**
+    - [🍔 Food Delivery System Design](#41-food-delivery-system-design)
+  - **Level 7 – AI Systems**
+    - [🧠 RAG Pipeline System Design](#71-rag-pipeline-system-design)
+    - [💾 Vector Database System Design](#72-vector-database-system-design)
+    - [🤖 ChatGPT System Design](#73-chatgpt-system-design)
+    - [🤖 AI Agent Framework System Design](#74-ai-agent-framework-system-design)
+    - [🌐 LLM Gateway System Design](#75-llm-gateway-system-design)
+    - [🔍 Semantic Search System Design](#76-semantic-search-system-design)
+    - [⚡ Token Streaming System Design](#77-token-streaming-system-design)
+  - **Level 8 – Distributed Systems**
+    - [🌐 API Gateway System Design](#81-api-gateway-system-design)
 - [☕ Support](#-support)
-
----
 
 ## 🗺️ System Design Roadmap
 
@@ -294,7 +296,11 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 ## 📂 Completed Blueprints
 
-### 1. URL Shortener System Design
+
+
+### Level 1 – Core System Design
+
+#### 1.1 URL Shortener System Design
 A production-grade system design for a high-scale URL shortening service like **Bitly** or **TinyURL**. Covers unique key generation (KGS), multi-layer caching (CDN → Redis → PostgreSQL), real-time click analytics, and 301 vs 302 redirect trade-offs.
 
 * **Documentation:** [URL Shortener System Design (url_shortener_system_design.md)](./level_1_core_system_design/url_shortener/url_shortener_system_design.md)
@@ -320,7 +326,9 @@ Visual flow showing the 3-layer caching strategy (CDN → Redis → PostgreSQL) 
 
 ---
 
-### 2. Pastebin System Design
+---
+
+#### 1.2 Pastebin System Design
 A production-grade system design for a high-scale text sharing platform like **Pastebin** or **GitHub Gist**. Covers metadata/content separation (PostgreSQL + S3), multi-layer caching with syntax highlighting, content compression, expiration policies, and content moderation.
 
 * **Documentation:** [Pastebin System Design (pastebin_system_design.md)](./level_1_core_system_design/pastebin/pastebin_system_design.md)
@@ -346,7 +354,9 @@ Visual flow showing the 3-layer cache strategy (CDN → Redis → PostgreSQL + S
 
 ---
 
-### 3. Distributed File Storage System Design
+---
+
+#### 1.3 Distributed File Storage System Design
 A production-grade distributed block/file storage system comparable to HDFS or GFS. Features complete separation of metadata (control plane) and physical data blocks (data plane), rack-aware replication pipelines, block report reconciliation, and sub-millisecond in-memory namespace operations.
 
 * **Documentation:** [Distributed File Storage System Design (file_storage_system_design.md)](./level_1_core_system_design/file_storage/file_storage_system_design.md)
@@ -366,7 +376,66 @@ Visual overview of the client, master metadata server, journaling log, and pipel
 
 ---
 
-### 4. Food Delivery System Design
+---
+
+#### 1.4 Dropbox System Design
+A production-grade cloud file synchronization service modeled on Dropbox/Google Drive. Features variable-size Rabin fingerprint chunking, global metadata block-level deduplication, real-time sync notification push loops, and local SQLite device syncing indexes.
+
+* **Documentation:** [Dropbox System Design (dropbox_system_design.md)](./level_1_core_system_design/dropbox/dropbox_system_design.md)
+
+#### Dropbox Tech Stack Details (with AWS Service Mapping)
+* **Amazon ECS Fargate:** Hosts the metadata and block ingest orchestration tasks.
+* **Amazon S3 Buckets:** Provides high-durability object storage for blocks. Standard lifecycles archive versions.
+* **Amazon Aurora PostgreSQL:** Tracks directory namespaces and versions map under serializable transaction isolates.
+* **Amazon ElastiCache for Redis:** Indexes block hashes to coordinate low-latency dedupe checks.
+
+#### Dropbox Architecture Diagrams
+
+##### A. High-Level System Architecture & Client Sync Ingestion Flow
+Visual layout showing Client Rabin fingerprint chunk pipelines, metadata, block servers, global dedup check, S3 block write, and WebSocket notification broadcasts.
+
+![Dropbox System Architecture](./level_1_core_system_design/dropbox/dropbox_system_architecture.png)
+
+##### B. AWS Cloud-Native Dropbox Sync Layout
+Cloud-native deployment showing public NLB gates, private VPC tiers, ECS pods, storage buckets, SQS queues, and WebSocket connection brokers.
+
+![AWS Cloud-Native Dropbox Architecture](./level_1_core_system_design/dropbox/dropbox_aws_architecture.png)
+
+---
+
+---
+
+#### 1.5 Smart Parking Lot System Design
+A production-grade, IoT-enabled Smart Parking System. Covers real-time bay sensor status MQTT routing, lock-free closest available spot allocations using optimistic concurrency versions, Automatic License Plate Recognition (ALPR) entry/exit gates, and payment gateway integration.
+
+* **Documentation:** [Smart Parking Lot System Design (parking_lot_system_design.md)](./level_1_core_system_design/parking_lot/parking_lot_system_design.md)
+
+#### Smart Parking Lot Tech Stack Details (with AWS Service Mapping)
+* **AWS IoT Core:** Directs lightweight MQTT state updates from bay sensors.
+* **AWS Lambda:** Processes raw sensor signals and updates Redis geospatial availability caches.
+* **Amazon ECS Fargate:** Hosts the Rest API routing spot allocations for entry/exit gates.
+* **Amazon ElastiCache for Redis:** Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups.
+* **Amazon Aurora PostgreSQL:** Implements ticket ledgers and invoice bookings under optimistic transaction checks.
+
+#### Smart Parking Lot Architecture Diagrams
+
+##### A. High-Level System Architecture & Sensor Ingestion Flow
+Visual layout detailing Ultrasonic sensors, MQTT event streams, ALPR gates, Spot Allocation Engine, and WebSocket live maps updates.
+
+![Smart Parking Lot System Architecture](./level_1_core_system_design/parking_lot/parking_lot_system_architecture.png)
+
+##### B. AWS Cloud-Native Smart Parking Architecture
+Cloud-native layout showing edge gate ALPR cameras, AWS IoT Core, ECS Fargate allocation handlers, Lambda workers, Redis geohash caches, and DynamoDB/Aurora ticketing registries.
+
+![AWS Cloud-Native Smart Parking Architecture](./level_1_core_system_design/parking_lot/parking_lot_aws_architecture.png)
+
+---
+
+---
+
+### Level 4 – Ride Sharing & Delivery
+
+#### 4.1 Food Delivery System Design
 A production-grade, end-to-end system design for a high-scale food delivery platform connecting Customers, Restaurants, and Delivery Partners.
 
 * **Documentation:** [Food Delivery System Design (food_delivery_system_design.md)](./level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md)
@@ -415,7 +484,11 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 
 ---
 
-### 5. RAG Pipeline System Design
+---
+
+### Level 7 – AI Systems
+
+#### 7.1 RAG Pipeline System Design
 A production-grade system design for a **Retrieval-Augmented Generation** pipeline — the backbone of knowledge-grounded AI systems. Covers document ingestion, parent-child chunking, hybrid retrieval (dense + BM25), cross-encoder re-ranking, prompt assembly, and grounded LLM generation with citations.
 
 * **Documentation:** [RAG Pipeline System Design (rag_pipeline_system_design.md)](./level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md)
@@ -441,7 +514,9 @@ End-to-end query flow showing parallel dense/sparse retrieval, RRF fusion, cross
 
 ---
 
-### 6. Vector Database System Design
+---
+
+#### 7.2 Vector Database System Design
 A production-grade system design for a real-time, low-latency **Vector Database** (comparable to Qdrant or Milvus). Highlights LSM-tree segment architectures, metadata pre-filtering during graph traversal, scalar quantization calculations (reducing vector size from float32 to int8 for a 72% RAM footprint saving), and distributed shard coordinating mechanisms.
 
 * **Documentation:** [Vector Database System Design (vector_database_system_design.md)](./level_7_ai_systems/vector_database/vector_database_system_design.md)
@@ -466,7 +541,9 @@ AWS cloud-native deployment using ECS proxy routing nodes, EC2 r6g memory-optimi
 
 ---
 
-### 7. ChatGPT System Design
+---
+
+#### 7.3 ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./level_7_ai_systems/chat_gpt/chatgpt_system_design.md)
@@ -502,7 +579,9 @@ Cloud-native deployment on AWS routing SSE streams through Application Load Bala
 
 ---
 
-### 8. AI Agent Framework System Design
+---
+
+#### 7.4 AI Agent Framework System Design
 A production-grade stateful agent runtime framework (comparable to LangGraph or CrewAI). Features graph-based execution loops, resilient state checkpointing, secure sandboxed execution environments, and Human-in-the-Loop approval gates.
 
 * **Documentation:** [AI Agent Framework System Design (ai_agent_framework_system_design.md)](./level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md)
@@ -527,7 +606,9 @@ Visual workflow illustrating how Lambda sandboxes, DynamoDB states, and ECS orch
 
 ---
 
-### 9. LLM Gateway System Design
+---
+
+#### 7.5 LLM Gateway System Design
 A high-throughput enterprise gateway proxy layers between application clients and upstream LLM providers. Optimizes model costs, handles intelligent routing and provider failover, and implements semantic query caching.
 
 * **Documentation:** [LLM Gateway System Design (llm_gateway_system_design.md)](./level_7_ai_systems/llm_gateway/llm_gateway_system_design.md)
@@ -552,7 +633,9 @@ AWS cloud-native deployment using ECS Fargate, DynamoDB configuration registries
 
 ---
 
-### 10. Semantic Search System Design
+---
+
+#### 7.6 Semantic Search System Design
 A production-grade, highly precise multi-stage retrieval hybrid search engine. Combines conceptual vector search with sparse keyword search and cross-encoder re-ranking.
 
 * **Documentation:** [Semantic Search System Design (semantic_search_system_design.md)](./level_7_ai_systems/semantic_search/semantic_search_system_design.md)
@@ -576,7 +659,9 @@ AWS cloud-native deployment using ECS Fargate search pods, Amazon OpenSearch Ser
 
 ---
 
-### 11. Token Streaming System Design
+---
+
+#### 7.7 Token Streaming System Design
 A high-concurrency real-time stream broker optimized for pushing token generation updates back to client apps with sub-100ms first-token latency targets.
 
 * **Documentation:** [Token Streaming System Design (token_streaming_system_design.md)](./level_7_ai_systems/token_streaming/token_streaming_system_design.md)
@@ -600,7 +685,11 @@ AWS cloud-native deployment using NLB, EKS connection gateway pods, ElastiCache 
 
 ---
 
-### 12. API Gateway System Design
+---
+
+### Level 8 – Distributed Systems
+
+#### 8.1 API Gateway System Design
 A high-performance event-driven edge routing gateway engineered to handle 100,000+ RPS. Manages SSL termination, JWT auth validation, sliding-window rate limiting, path rewrites, dynamic service routing, and telemetry logging.
 
 * **Documentation:** [API Gateway System Design (api_gateway_system_design.md)](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md)
@@ -622,59 +711,6 @@ Visual layout illustrating the Linux epoll connection events listener, CPU core 
 Cloud-native layout showing traffic passing through WAF, NLB layers, ECS Envoy task arrays, authentication, caching tiers, and downstream service routing targets.
 
 ![AWS Cloud-Native API Gateway Architecture](./level_8_distributed_systems/api_gateway/api_gateway_aws_architecture.png)
-
----
-
-### 13. Dropbox System Design
-A production-grade cloud file synchronization service modeled on Dropbox/Google Drive. Features variable-size Rabin fingerprint chunking, global metadata block-level deduplication, real-time sync notification push loops, and local SQLite device syncing indexes.
-
-* **Documentation:** [Dropbox System Design (dropbox_system_design.md)](./level_1_core_system_design/dropbox/dropbox_system_design.md)
-
-#### Dropbox Tech Stack Details (with AWS Service Mapping)
-* **Amazon ECS Fargate:** Hosts the metadata and block ingest orchestration tasks.
-* **Amazon S3 Buckets:** Provides high-durability object storage for blocks. Standard lifecycles archive versions.
-* **Amazon Aurora PostgreSQL:** Tracks directory namespaces and versions map under serializable transaction isolates.
-* **Amazon ElastiCache for Redis:** Indexes block hashes to coordinate low-latency dedupe checks.
-
-#### Dropbox Architecture Diagrams
-
-##### A. High-Level System Architecture & Client Sync Ingestion Flow
-Visual layout showing Client Rabin fingerprint chunk pipelines, metadata, block servers, global dedup check, S3 block write, and WebSocket notification broadcasts.
-
-![Dropbox System Architecture](./level_1_core_system_design/dropbox/dropbox_system_architecture.png)
-
-##### B. AWS Cloud-Native Dropbox Sync Layout
-Cloud-native deployment showing public NLB gates, private VPC tiers, ECS pods, storage buckets, SQS queues, and WebSocket connection brokers.
-
-![AWS Cloud-Native Dropbox Architecture](./level_1_core_system_design/dropbox/dropbox_aws_architecture.png)
-
----
-
-### 14. Smart Parking Lot System Design
-A production-grade, IoT-enabled Smart Parking System. Covers real-time bay sensor status MQTT routing, lock-free closest available spot allocations using optimistic concurrency versions, Automatic License Plate Recognition (ALPR) entry/exit gates, and payment gateway integration.
-
-* **Documentation:** [Smart Parking Lot System Design (parking_lot_system_design.md)](./level_1_core_system_design/parking_lot/parking_lot_system_design.md)
-
-#### Smart Parking Lot Tech Stack Details (with AWS Service Mapping)
-* **AWS IoT Core:** Directs lightweight MQTT state updates from bay sensors.
-* **AWS Lambda:** Processes raw sensor signals and updates Redis geospatial availability caches.
-* **Amazon ECS Fargate:** Hosts the Rest API routing spot allocations for entry/exit gates.
-* **Amazon ElastiCache for Redis:** Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups.
-* **Amazon Aurora PostgreSQL:** Implements ticket ledgers and invoice bookings under optimistic transaction checks.
-
-#### Smart Parking Lot Architecture Diagrams
-
-##### A. High-Level System Architecture & Sensor Ingestion Flow
-Visual layout detailing Ultrasonic sensors, MQTT event streams, ALPR gates, Spot Allocation Engine, and WebSocket live maps updates.
-
-![Smart Parking Lot System Architecture](./level_1_core_system_design/parking_lot/parking_lot_system_architecture.png)
-
-##### B. AWS Cloud-Native Smart Parking Architecture
-Cloud-native layout showing edge gate ALPR cameras, AWS IoT Core, ECS Fargate allocation handlers, Lambda workers, Redis geohash caches, and DynamoDB/Aurora ticketing registries.
-
-![AWS Cloud-Native Smart Parking Architecture](./level_1_core_system_design/parking_lot/parking_lot_aws_architecture.png)
-
----
 
 ## ☕ Support
 
