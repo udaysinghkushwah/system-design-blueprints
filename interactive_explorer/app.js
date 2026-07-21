@@ -22,8 +22,9 @@ const systemData = {
     domain_name = aws_lb.app_alb.dns_name
     origin_id   = "ALBOrigin"
   }
+  enabled             = true
   default_cache_behavior {
-    target_origin_id = "ALBOrigin"
+    target_origin_id       = "ALBOrigin"
     viewer_protocol_policy = "redirect-to-https"
   }
 }`
@@ -42,6 +43,7 @@ const systemData = {
   cluster         = aws_ecs_cluster.app.id
   task_definition = aws_ecs_task_definition.task.arn
   desired_count   = 6
+  launch_type     = "FARGATE"
 }`
             },
             "redis": {
@@ -66,6 +68,7 @@ const systemData = {
   engine                  = "aurora-postgresql"
   database_name           = "shortener"
   master_username         = "postgres"
+  master_password         = "SuperSecurePass123!"
 }`
             },
             "kinesis": {
@@ -81,6 +84,10 @@ const systemData = {
                 config: `resource "aws_kinesis_firehose_delivery_stream" "analytics" {
   name        = "shortener-analytics-stream"
   destination = "extended_s3"
+  extended_s3_configuration {
+    bucket_arn = aws_s3_bucket.analytics_bucket.arn
+    role_arn   = aws_iam_role.firehose_role.arn
+  }
 }`
             }
         }
@@ -102,7 +109,23 @@ const systemData = {
                 category: "Networking & Edge",
                 description: "Caches public paste content and checks syntax-highlighted HTML pages, keeping read latency under 5ms.",
                 payload: `GET /raw/paste_99ab88\nHTTP/2 200 OK\nContent-Type: text/plain`,
-                config: `# CloudFront distribution caching paste content`
+                config: `resource "aws_cloudfront_distribution" "paste_cdn" {
+  origin {
+    domain_name = aws_s3_bucket.pastes_bucket.bucket_regional_domain_name
+    origin_id   = "S3Origin"
+  }
+  enabled             = true
+  default_cache_behavior {
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    target_origin_id = "S3Origin"
+    forwarded_values {
+      query_string = false
+      cookies { forward = "none" }
+    }
+    viewer_protocol_policy = "redirect-to-https"
+  }
+}`
             },
             "proxy": {
                 name: "ECS Fargate (Paste Ingest/Read)",
@@ -116,6 +139,15 @@ const systemData = {
                 config: `resource "aws_ecs_task_definition" "paste_task" {
   family                   = "pastebin-processor"
   requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  cpu                      = "1024"
+  memory                   = "2048"
+  container_definitions = jsonencode([{
+    name      = "paste-api"
+    image     = "pastebin/api:latest"
+    essential = true
+    portMappings = [{ containerPort = 8080, hostPort = 8080 }]
+  }])
 }`
             },
             "redis": {
@@ -123,14 +155,28 @@ const systemData = {
                 category: "Database & Cache",
                 description: "Multi-tier cache stores raw pastes, pre-compiled syntax highlighting sheets, and metadata index keys.",
                 payload: `GET paste:meta:99ab88\n"{\\"title\\":\\"Log Output\\",\\"user_id\\":42}"`,
-                config: `# Redis replication groups mapping cache`
+                config: `resource "aws_elasticache_replication_group" "paste_cache" {
+  replication_group_id          = "pastebin-cache-group"
+  description                   = "Active paste metadata and compiled syntax cache"
+  node_type                     = "cache.r6g.large"
+  num_cache_clusters            = 3
+  port                          = 6379
+  automatic_failover_enabled    = true
+}`
             },
             "db": {
                 name: "Aurora PostgreSQL DB",
                 category: "Durable Metadata",
                 description: "Houses paste records metadata (author, expiry, folder paths) with custom index parameters for scheduled expirations.",
                 payload: `SELECT * FROM pastes WHERE expiry_time < NOW();`,
-                config: `# RDS PostgreSQL cluster instance configurations`
+                config: `resource "aws_rds_cluster" "paste_db" {
+  cluster_identifier      = "pastebin-metadata-db"
+  engine                  = "aurora-postgresql"
+  database_name           = "paste_metadata"
+  master_username         = "admin"
+  master_password         = "SecurePass123!"
+  backup_retention_period = 7
+}`
             },
             "s3": {
                 name: "Amazon S3 Content Storage",
@@ -139,6 +185,7 @@ const systemData = {
                 payload: `PUT /pastes/99ab88.zst (Size: 4.2 KB)`,
                 config: `resource "aws_s3_bucket" "pastes_bucket" {
   bucket = "pastebin-raw-content"
+  force_destroy = true
 }`
             }
         }
@@ -159,7 +206,11 @@ const systemData = {
                 category: "Networking Layer",
                 description: "Distributes TCP client connections to control plane or high-throughput storage instances.",
                 payload: `TCP Connection Ingress\nLayer 4 TCP forward\nPort 9000 (Data Plane) / Port 8080 (Control Plane)`,
-                config: `# NLB Layer 4 TCP listeners mappings`
+                config: `resource "aws_lb" "storage_nlb" {
+  name               = "file-storage-nlb"
+  load_balancer_type = "network"
+  subnets            = aws_subnet.public.*.id
+}`
             },
             "proxy": {
                 name: "ECS Namespace Controllers",
@@ -170,14 +221,29 @@ const systemData = {
   "file_path": "/user/data/report.csv",
   "blocks": ["b12", "b13"]
 }`,
-                config: `# ECS Master Controller deployments mapping`
+                config: `resource "aws_ecs_service" "master_service" {
+  name            = "storage-master-controller"
+  cluster         = aws_ecs_cluster.app.id
+  task_definition = aws_ecs_task_definition.master_task.arn
+  desired_count   = 3
+  launch_type     = "FARGATE"
+}`
             },
             "ec2": {
                 name: "EC2 NVMe Chunk Servers",
                 category: "Data Plane Compute",
                 description: "High-performance EC2 instance clusters hosting NVMe SSDs. Receives, replicates, and serves raw 64 MB block chunks.",
                 payload: `WRITE_BLOCK block_12 (size: 64MB)\nPipeline Replication -> ChunkServer_B -> ChunkServer_C`,
-                config: `# EC2 storage-optimized instances (i3en/d3)`
+                config: `resource "aws_instance" "chunk_server" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "i3en.2xlarge"
+  subnet_id     = aws_subnet.private[0].id
+  ebs_block_device {
+    device_name = "/dev/sdb"
+    volume_size = 2000
+    volume_type = "gp3"
+  }
+}`
             },
             "db": {
                 name: "Amazon DynamoDB Metadata",
@@ -190,105 +256,11 @@ const systemData = {
                 config: `resource "aws_dynamodb_table" "fs_metadata" {
   name     = "distributed_filesystem_metadata"
   hash_key = "path_uuid"
+  attribute {
+    name = "path_uuid"
+    type = "S"
+  }
 }`
-            }
-        }
-    },
-    dropbox: {
-        title: "Dropbox Cloud Synchronization",
-        description: "Delta synchronization storage system resolving conflicts at block-level via global hashes indexing.",
-        docLink: "../level_1_core_system_design/dropbox/dropbox_system_design.md",
-        techStack: [
-            { service: "Amazon ECS Fargate", role: "Hosts the metadata and block ingest orchestration tasks." },
-            { service: "Amazon S3 Buckets", role: "Provides high-durability object storage for blocks. Standard lifecycles archive versions." },
-            { service: "Amazon Aurora PostgreSQL", role: "Tracks directory namespaces and versions map under serializable transaction isolates." },
-            { service: "Amazon ElastiCache for Redis", role: "Indexes block hashes to coordinate low-latency dedupe checks." }
-        ],
-        nodes: {
-            "ingress": {
-                name: "Network Load Balancer (NLB)",
-                category: "Networking Ingress",
-                description: "Routes client file uploads and persistent WebSocket notification streams.",
-                payload: `WebSocket Connection Ingress\nStream check-ins`,
-                config: `# NLB listeners mapped to metadata and block servers`
-            },
-            "proxy": {
-                name: "ECS Fargate (Block/Meta Sync)",
-                category: "Compute Clusters",
-                description: "Ingests blocks, triggers global dedupe checks, updates file version tables, and schedules notifications.",
-                payload: `{
-  "action": "UPLOAD_BLOCKS",
-  "client_hashes": ["H1", "H2", "H3"],
-  "unique_blocks": ["H2"]
-}`,
-                config: `# ECS Fargate task deployments`
-            },
-            "redis": {
-                name: "ElastiCache Redis Hash Registry",
-                category: "Database & Cache",
-                description: "Maintains a memory index registry of all unique block hashes for low-latency dedupe checks.",
-                payload: `HEXISTS block_hashes SHA256_HASH_BLOCK_H2\n(integer) 0`,
-                config: `# Redis block hash index cache`
-            },
-            "db": {
-                name: "Amazon Aurora PostgreSQL",
-                category: "Metadata Namespaces Store",
-                description: "Tracks directory namespaces, file-to-block maps, and file version revisions.",
-                payload: `SELECT * FROM file_chunks WHERE file_id = 'file_123' AND version_number = 3;`,
-                config: `# Aurora DB registries`
-            },
-            "s3": {
-                name: "Amazon S3 Object Vault",
-                category: "Durable Block Store",
-                description: "Holds all unique data block objects, configured with Glacier lifecycle policies for version archive cleanup.",
-                payload: `PUT /dropbox-blocks/SHA256_HASH_BLOCK_H2`,
-                config: `# S3 storage lifecycle policies`
-            }
-        }
-    },
-    parking_lot: {
-        title: "Smart Parking Lot Engine",
-        description: "IoT-enabled parking slot allocation, sensor telemetry processor, and billing ledger tracker.",
-        docLink: "../level_1_core_system_design/parking_lot/parking_lot_system_design.md",
-        techStack: [
-            { service: "AWS IoT Core", role: "Directs lightweight MQTT state updates from bay sensors." },
-            { service: "AWS Lambda", role: "Processes raw sensor signals and updates Redis geospatial availability caches." },
-            { service: "Amazon ECS Fargate", role: "Hosts the Rest API routing spot allocations for entry/exit gates." },
-            { service: "Amazon ElastiCache for Redis", role: "Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups." },
-            { service: "Amazon Aurora PostgreSQL", role: "Implements ticket ledgers and invoice bookings under optimistic transaction checks." }
-        ],
-        nodes: {
-            "ingress": {
-                name: "API Gateway & AWS IoT Core",
-                category: "IoT Ingress & API Gateway",
-                description: "API Gateway ingests entry/exit ALPR camera scans. AWS IoT Core establishes lightweight MQTT loops with bay sensors.",
-                payload: `MQTT TOPIC: /sensors/bay_12/status\n{"occupied": true, "timestamp": 1784643600}`,
-                config: `# AWS IoT Core MQTT broker settings`
-            },
-            "proxy": {
-                name: "ECS Fargate (Allocation Engine)",
-                category: "Compute Engine",
-                description: "Evaluates gate REST API requests. Runs closest-available-slot calculations using geohash indexes.",
-                payload: `{
-  "license_plate": "ABC1234",
-  "vehicle_type": "EV",
-  "allocated_slot_id": "spot_104"
-}`,
-                config: `# ECS allocation nodes task definitions`
-            },
-            "redis": {
-                name: "ElastiCache Redis Vacancies Map",
-                category: "Database & Cache",
-                description: "Fast in-memory cache tracking available spots by type and geohash coordinates.",
-                payload: `GEORADIUS vacant_ev_spots -73.93 40.73 200 m`,
-                config: `# Redis spatial cache registries`
-            },
-            "db": {
-                name: "Amazon Aurora PostgreSQL",
-                category: "Durable Billing Ledger",
-                description: "Records parking ticket sessions, pricing scales, payments, and invoice ledger logs.",
-                payload: `UPDATE parking_spots SET status = 'RESERVED', version = version + 1 WHERE spot_id = 'spot_104' AND version = 3;`,
-                config: `# Aurora SQL DB schemas`
             }
         }
     },
@@ -310,7 +282,11 @@ const systemData = {
                 category: "Networking Ingress",
                 description: "Routes client REST requests, restaurant webhooks, and rider telemetry streams.",
                 payload: `POST /api/v1/orders/checkout\nAuthorization: Bearer jwt_rider_token`,
-                config: `# HTTP/HTTPS ALB listener rules`
+                config: `resource "aws_lb" "food_alb" {
+  name               = "food-delivery-alb"
+  load_balancer_type = "application"
+  subnets            = aws_subnet.public.*.id
+}`
             },
             "proxy": {
                 name: "ECS Fargate (Core Microservices)",
@@ -320,28 +296,201 @@ const systemData = {
   "order_id": "ord_884",
   "matching_status": "searching_rider"
 }`,
-                config: `# ECS Fargate task mappings`
+                config: `resource "aws_ecs_service" "food_services" {
+  name            = "order-dispatch-service"
+  cluster         = aws_ecs_cluster.food_cluster.id
+  task_definition = aws_ecs_task_definition.food_task.arn
+  desired_count   = 8
+}`
             },
             "redis": {
                 name: "ElastiCache Redis Geospatial",
                 category: "Geospatial In-Memory Engine",
                 description: "Stores live rider coordinate records. Triggers rapid queries to locate closest riders inside a 5km radius.",
                 payload: `GEORADIUS active_riders 72.87 19.07 5 km`,
-                config: `# Redis Geo-spatial cache cluster settings`
+                config: `resource "aws_elasticache_cluster" "geo_redis" {
+  cluster_id           = "rider-locations-cache"
+  node_type            = "cache.m6g.xlarge"
+  num_cache_nodes      = 4
+  port                 = 6379
+  parameter_group_name = "default.redis7"
+}`
             },
             "db": {
                 name: "Aurora PostgreSQL Transactional",
                 category: "Durable Orders database",
                 description: "Transactional DB mapping orders, checkout records, payment authorizations, and ledger updates.",
                 payload: `INSERT INTO order_ledgers (order_id, amount, status) VALUES ('ord_884', 24.50, 'authorized');`,
-                config: `# Aurora PostgreSQL cluster settings`
+                config: `resource "aws_rds_cluster" "food_postgres" {
+  cluster_identifier      = "food-orders-db"
+  engine                  = "aurora-postgresql"
+  database_name           = "food_orders"
+  master_username         = "delivery_admin"
+}`
             },
             "keyspaces": {
                 name: "Keyspaces (Cassandra Cluster)",
                 category: "Rider Telemetry logger",
                 description: "Managed Cassandra storage. Ingests heavy raw rider location coordinates updates (25k writes/sec).",
                 payload: `INSERT INTO rider_tracks (rider_id, lat, lng, time) VALUES ('r_42', 19.07, 72.87, 1784643600);`,
-                config: `# Cassandra keyspaces schemas and tables`
+                config: `resource "aws_keyspaces_table" "telemetry" {
+  keyspace_name = "rider_telemetry"
+  table_name    = "rider_tracks"
+  schema_definition {
+    partition_key { name = "rider_id" }
+    clustering_key { name = "time"; order = "ASC" }
+    column { name = "rider_id"; type = "ascii" }
+    column { name = "time"; type = "timestamp" }
+    column { name = "lat"; type = "double" }
+    column { name = "lng"; type = "double" }
+  }
+}`
+            }
+        }
+    },
+    dropbox: {
+        title: "Dropbox Cloud Synchronization",
+        description: "Delta synchronization storage system resolving conflicts at block-level via global hashes indexing.",
+        docLink: "../level_1_core_system_design/dropbox/dropbox_system_design.md",
+        techStack: [
+            { service: "Amazon ECS Fargate", role: "Hosts the metadata and block ingest orchestration tasks." },
+            { service: "Amazon S3 Buckets", role: "Provides high-durability object storage for blocks. Standard lifecycles archive versions." },
+            { service: "Amazon Aurora PostgreSQL", role: "Tracks directory namespaces and versions map under serializable transaction isolates." },
+            { service: "Amazon ElastiCache for Redis", role: "Indexes block hashes to coordinate low-latency dedupe checks." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Network Load Balancer (NLB)",
+                category: "Networking Ingress",
+                description: "Routes client file uploads and persistent WebSocket notification streams.",
+                payload: `WebSocket Connection Ingress\nStream check-ins`,
+                config: `resource "aws_lb" "dropbox_nlb" {
+  name               = "dropbox-sync-nlb"
+  load_balancer_type = "network"
+  subnets            = aws_subnet.public.*.id
+}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Block/Meta Sync)",
+                category: "Compute Clusters",
+                description: "Ingests blocks, triggers global dedupe checks, updates file version tables, and schedules notifications.",
+                payload: `{
+  "action": "UPLOAD_BLOCKS",
+  "client_hashes": ["H1", "H2", "H3"],
+  "unique_blocks": ["H2"]
+}`,
+                config: `resource "aws_ecs_service" "sync_workers" {
+  name            = "sync-orchestrator"
+  cluster         = aws_ecs_cluster.sync_cluster.id
+  task_definition = aws_ecs_task_definition.sync_task.arn
+  desired_count   = 6
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Hash Registry",
+                category: "Database & Cache",
+                description: "Maintains a memory index registry of all unique block hashes for low-latency dedupe checks.",
+                payload: `HEXISTS block_hashes SHA256_HASH_BLOCK_H2\n(integer) 0`,
+                config: `resource "aws_elasticache_replication_group" "hash_registry" {
+  replication_group_id = "dedupe-hash-cache"
+  node_type            = "cache.r6g.xlarge"
+  num_cache_clusters   = 3
+  port                 = 6379
+}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Metadata Namespaces Store",
+                description: "Tracks directory namespaces, file-to-block maps, and file version revisions.",
+                payload: `SELECT * FROM file_chunks WHERE file_id = 'file_123' AND version_number = 3;`,
+                config: `resource "aws_rds_cluster" "namespaces_db" {
+  cluster_identifier = "dropbox-namespaces-db"
+  engine             = "aurora-postgresql"
+  database_name      = "dropbox_meta"
+}`
+            },
+            "s3": {
+                name: "Amazon S3 Object Vault",
+                category: "Durable Block Store",
+                description: "Holds all unique data block objects, configured with Glacier lifecycle policies for version archive cleanup.",
+                payload: `PUT /dropbox-blocks/SHA256_HASH_BLOCK_H2`,
+                config: `resource "aws_s3_bucket_lifecycle_configuration" "blocks_lifecycle" {
+  bucket = aws_s3_bucket.blocks_bucket.id
+  rule {
+    id     = "archive-old-blocks"
+    status = "Enabled"
+    transition {
+      days          = 30
+      storage_class = "GLACIER"
+    }
+  }
+}`
+            }
+        }
+    },
+    parking_lot: {
+        title: "Smart Parking Lot Engine",
+        description: "IoT-enabled parking slot allocation, sensor telemetry processor, and billing ledger tracker.",
+        docLink: "../level_1_core_system_design/parking_lot/parking_lot_system_design.md",
+        techStack: [
+            { service: "AWS IoT Core", role: "Directs lightweight MQTT state updates from bay sensors." },
+            { service: "AWS Lambda", role: "Processes raw sensor signals and updates Redis geospatial availability caches." },
+            { service: "Amazon ECS Fargate", role: "Hosts the Rest API routing spot allocations for entry/exit gates." },
+            { service: "Amazon ElastiCache for Redis", role: "Indexes vacant spots as geospatial metrics for rapid radial vacancy lookups." },
+            { service: "Amazon Aurora PostgreSQL", role: "Implements ticket ledgers and invoice bookings under optimistic transaction checks." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "API Gateway & AWS IoT Core",
+                category: "IoT Ingress & API Gateway",
+                description: "API Gateway ingests entry/exit ALPR camera scans. AWS IoT Core establishes lightweight MQTT loops with bay sensors.",
+                payload: `MQTT TOPIC: /sensors/bay_12/status\n{"occupied": true, "timestamp": 1784643600}`,
+                config: `resource "aws_iot_topic_rule" "sensor_rule" {
+  name        = "process_parking_sensors"
+  sql         = "SELECT * FROM '/sensors/+/status'"
+  sql_version = "2016-03-23"
+  lambda {
+    function_arn = aws_lambda_function.ingest_worker.arn
+  }
+}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Allocation Engine)",
+                category: "Compute Engine",
+                description: "Evaluates gate REST API requests. Runs closest-available-slot calculations using geohash indexes.",
+                payload: `{
+  "license_plate": "ABC1234",
+  "vehicle_type": "EV",
+  "allocated_slot_id": "spot_104"
+}`,
+                config: `resource "aws_ecs_service" "alloc_engine" {
+  name            = "parking-allocator"
+  cluster         = aws_ecs_cluster.parking_cluster.id
+  task_definition = aws_ecs_task_definition.alloc_task.arn
+  desired_count   = 3
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Vacancies Map",
+                category: "Database & Cache",
+                description: "Fast in-memory cache tracking available spots by type and geohash coordinates.",
+                payload: `GEORADIUS vacant_ev_spots -73.93 40.73 200 m`,
+                config: `resource "aws_elasticache_replication_group" "occupancy_grid" {
+  replication_group_id = "parking-occupancy-grid"
+  node_type            = "cache.t4g.medium"
+  num_cache_clusters   = 2
+}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Durable Billing Ledger",
+                description: "Records parking ticket sessions, pricing scales, payments, and invoice ledger logs.",
+                payload: `UPDATE parking_spots SET status = 'RESERVED', version = version + 1 WHERE spot_id = 'spot_104' AND version = 3;`,
+                config: `resource "aws_rds_cluster" "parking_db" {
+  cluster_identifier = "parking-lot-ledger-db"
+  engine             = "aurora-postgresql"
+  database_name      = "parking_ledger"
+}`
             }
         }
     },
@@ -362,7 +511,11 @@ const systemData = {
                 category: "Networking Ingress",
                 description: "Distributes incoming client text query streams to the query orchestrator pods.",
                 payload: `POST /v1/search\n{"query": "distributed consensus systems"}`,
-                config: `# ALB listener rules`
+                config: `resource "aws_lb" "rag_alb" {
+  name               = "rag-query-alb"
+  load_balancer_type = "application"
+  subnets            = aws_subnet.public.*.id
+}`
             },
             "proxy": {
                 name: "ECS Fargate (Query Orchestrator)",
@@ -372,7 +525,12 @@ const systemData = {
   "query": "distributed consensus",
   "top_opensearch_candidates": 50
 }`,
-                config: `# ECS query orchestrator definitions`
+                config: `resource "aws_ecs_service" "rag_orchestrator" {
+  name            = "rag-query-orchestrator"
+  cluster         = aws_ecs_cluster.rag_cluster.id
+  task_definition = aws_ecs_task_definition.orchestrator_task.arn
+  desired_count   = 4
+}`
             },
             "opensearch": {
                 name: "Amazon OpenSearch Cluster",
@@ -382,7 +540,14 @@ const systemData = {
   "dense_scores": [0.912, 0.844],
   "sparse_scores": [15.22, 11.08]
 }`,
-                config: `# OpenSearch cluster size settings`
+                config: `resource "aws_opensearch_domain" "rag_os" {
+  domain_name    = "rag-embeddings-store"
+  engine_version = "OpenSearch_2.11"
+  cluster_config {
+    instance_type  = "r6g.large.search"
+    instance_count = 2
+  }
+}`
             },
             "sagemaker": {
                 name: "SageMaker Rerank Endpoint",
@@ -394,7 +559,10 @@ const systemData = {
     { "doc_id": "doc_99", "score": 0.540 }
   ]
 }`,
-                config: `# SageMaker cross-encoder endpoints configuration`
+                config: `resource "aws_sagemaker_endpoint" "reranker" {
+  name                 = "rag-cross-encoder-reranker"
+  endpoint_config_name = aws_sagemaker_endpoint_configuration.rerank_config.name
+}`
             },
             "bedrock": {
                 name: "Amazon Bedrock API",
@@ -406,7 +574,17 @@ const systemData = {
     "citations": ["doc_12"]
   }
 }`,
-                config: `# Bedrock Anthropic/Claude integration configurations`
+                config: `resource "aws_iam_policy" "bedrock_access" {
+  name   = "bedrock-invoke-model-policy"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "bedrock:InvokeModel"
+      Resource = "arn:aws:bedrock:*::foundation-model/*"
+    }]
+  })
+}`
             }
         }
     },
@@ -457,14 +635,17 @@ const systemData = {
   "graph_nodes_scanned": 142,
   "distance_type": "cosine"
 }`,
-                config: `# EC2 r6g memory-optimized instances`
+                config: `resource "aws_instance" "shard_node" {
+  ami           = "ami-0c55b159cbfafe1f0"
+  instance_type = "r6g.xlarge"
+  subnet_id     = aws_subnet.private[0].id
+}`
             },
             "ebs": {
                 name: "Amazon EBS gp3 Volume",
                 category: "Database Storage",
                 description: "Durable Write-Ahead Log SSD. Persists newly inserted vectors immediately before compiling index memory segments.",
-                payload: `Append record log:
-[TX_142] Collection: my_vectors | UUID: p_99 | Data: float32[768]`,
+                payload: `Append record log:\n[TX_142] Collection: my_vectors | UUID: p_99 | Data: float32[768]`,
                 config: `resource "aws_ebs_volume" "wal_volume" {
   availability_zone = "us-east-1a"
   size              = 100
@@ -500,7 +681,17 @@ const systemData = {
                 category: "Networking Ingress",
                 description: "Maintains persistent HTTP/2 connection tunnels to client devices, streaming text completions text-by-text.",
                 payload: `HTTP/2 200 OK\nContent-Type: text/event-stream\nTransfer-Encoding: chunked`,
-                config: `# ALB HTTP/2 Listener Settings`
+                config: `resource "aws_lb_listener" "http2_sse" {
+  load_balancer_arn = aws_lb.chat_alb.arn
+  port              = "443"
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-2016-08"
+  certificate_arn   = aws_acm_certificate.cert.arn
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.chat_sse_tg.arn
+  }
+}`
             },
             "proxy": {
                 name: "ECS Session Orchestrators",
@@ -510,21 +701,38 @@ const systemData = {
   "session_id": "sess_421",
   "prompt_assembled": "[History: 4 messages] [User: Hello!]"
 }`,
-                config: `# ECS task definition parameters`
+                config: `resource "aws_ecs_service" "chat_orchestrator" {
+  name            = "chat-orchestrator"
+  cluster         = aws_ecs_cluster.chat_cluster.id
+  task_definition = aws_ecs_task_definition.orchestrator_task.arn
+  desired_count   = 6
+}`
             },
             "redis": {
                 name: "ElastiCache Redis Session Store",
                 category: "Database & Cache",
                 description: "Sub-millisecond context window cache. Stores active dialogue tokens to accelerate context assembly loops.",
                 payload: `GET session:context:sess_421\n"[Message history array]"`,
-                config: `# ElastiCache cluster configuration mappings`
+                config: `resource "aws_elasticache_replication_group" "context_cache" {
+  replication_group_id = "chat-context-cache"
+  node_type            = "cache.r6g.large"
+  num_cache_clusters   = 3
+  port                 = 6379
+}`
             },
             "db": {
                 name: "Amazon DynamoDB (Chat History)",
                 category: "Durable History Database",
                 description: "Durable database mapping all chronological conversation messages, partitioned by session UUID.",
                 payload: `SELECT * FROM chat_history WHERE session_id = 'sess_421' ORDER BY timestamp ASC;`,
-                config: `# DynamoDB wide tables setup`
+                config: `resource "aws_dynamodb_table" "chat_history" {
+  name           = "chat_history_records"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "session_id"
+  range_key      = "message_id"
+  attribute { name = "session_id"; type = "S" }
+  attribute { name = "message_id"; type = "S" }
+}`
             },
             "gpu": {
                 name: "Amazon EKS GPU Inference Pods",
@@ -534,7 +742,18 @@ const systemData = {
   "inference_tokens_per_sec": 42.8,
   "vllm_engine_status": "generating"
 }`,
-                config: `# EKS node group config mounting NVIDIA A100 GPU instances`
+                config: `resource "aws_eks_node_group" "gpu_instances" {
+  cluster_name    = aws_eks_cluster.core_eks.name
+  node_group_name = "gpu-worker-pool"
+  node_role_arn   = aws_iam_role.node_role.arn
+  subnet_ids      = aws_subnet.private.*.id
+  instance_types  = ["p4d.24xlarge"]
+  scaling_config {
+    desired_size = 4
+    max_size     = 10
+    min_size     = 2
+  }
+}`
             }
         }
     },
@@ -554,7 +773,10 @@ const systemData = {
                 category: "Networking Ingress",
                 description: "API Gateway proxies incoming execution triggers and agent interaction requests.",
                 payload: `POST /v1/agent/run\n{"agent_id": "researcher", "task": "Summarize AI news"}`,
-                config: `# API Gateway API settings`
+                config: `resource "aws_apigatewayv2_api" "agent_api" {
+  name          = "agent-framework-gateway"
+  protocol_type = "HTTP"
+}`
             },
             "proxy": {
                 name: "ECS Fargate (State Loop Engine)",
@@ -565,21 +787,34 @@ const systemData = {
   "current_state_node": "extract_topics",
   "action": "call_lambda_tool"
 }`,
-                config: `# ECS task definitions`
+                config: `resource "aws_ecs_service" "loop_executor" {
+  name            = "agent-loop-executor"
+  cluster         = aws_ecs_cluster.agent_cluster.id
+  task_definition = aws_ecs_task_definition.loop_task.arn
+  desired_count   = 4
+}`
             },
             "redis": {
                 name: "ElastiCache Redis Mutex Cache",
                 category: "Database & Cache",
                 description: "Manages state locks and execution tokens, ensuring an agent thread has exactly one active worker loop execution.",
                 payload: `SETNX lock:agent:run:researcher true\n(integer) 1`,
-                config: `# Redis replication groups mapping locks`
+                config: `resource "aws_elasticache_replication_group" "mutex_registry" {
+  replication_group_id = "agent-mutex-locks"
+  node_type            = "cache.t4g.medium"
+  num_cache_clusters   = 2
+}`
             },
             "db": {
                 name: "Aurora PostgreSQL State Ledger",
                 category: "Durable History DB",
                 description: "Relational database mapping chronological execution graphs states, variable updates, and history checkpoints.",
                 payload: `SELECT checkpoint_data FROM agent_checkpoints WHERE agent_id = 'researcher' ORDER BY step_idx DESC LIMIT 1;`,
-                config: `# Aurora DB registries`
+                config: `resource "aws_rds_cluster" "checkpoints_db" {
+  cluster_identifier = "agent-checkpoints-db"
+  engine             = "aurora-postgresql"
+  database_name      = "agent_checkpoints"
+}`
             },
             "lambda": {
                 name: "AWS Lambda Sandboxes",
@@ -589,7 +824,15 @@ const systemData = {
   "script": "import urllib; print(urllib.request.urlopen('http://url').read())",
   "execution_duration_ms": 1420
 }`,
-                config: `# AWS Lambda execution role limits`
+                config: `resource "aws_lambda_function" "tool_sandbox" {
+  function_name = "agent-tool-executor-sandbox"
+  runtime       = "python3.11"
+  role          = aws_iam_role.sandbox_role.arn
+  handler       = "index.handler"
+  filename      = "sandbox.zip"
+  timeout       = 30
+  memory_size   = 512
+}`
             }
         }
     },
@@ -650,11 +893,7 @@ const systemData = {
                 name: "ElastiCache Redis",
                 category: "Database & Cache",
                 description: "Sub-millisecond token rate counter and semantic cache memory cluster. Uses sliding window hashes to limit tenant requests.",
-                payload: `HGETALL tenant:rate:tenant-123
-1) "tokens_in_window"
-2) "4210"
-3) "window_start"
-4) "1784616000"`,
+                payload: `HGETALL tenant:rate:tenant-123\n1) "tokens_in_window"\n2) "4210"\n3) "window_start"\n4) "1784616000"`,
                 config: `resource "aws_elasticache_replication_group" "redis" {
   replication_group_id = "llm-gateway-cache"
   description          = "Redis rate-limits & semantic-cache store"
@@ -677,7 +916,6 @@ const systemData = {
   name           = "llm_tenant_registry"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "tenant_id"
-
   attribute {
     name = "tenant_id"
     type = "S"
@@ -698,7 +936,6 @@ const systemData = {
                 config: `resource "aws_kinesis_firehose_delivery_stream" "ledger_stream" {
   name        = "llm-ledger-delivery-stream"
   destination = "extended_s3"
-
   extended_s3_configuration {
     role_arn   = aws_iam_role.firehose_role.arn
     bucket_arn = aws_s3_bucket.ledger_bucket.arn
@@ -715,7 +952,10 @@ const systemData = {
     "completion_tokens": 240
   }
 }`,
-                config: `# Managed Bedrock Execution Endpoint Connection`
+                config: `resource "aws_iam_role_policy_attachment" "bedrock_attach" {
+  role       = aws_iam_role.proxy_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonBedrockFullAccess"
+}`
             }
         }
     },
@@ -772,9 +1012,8 @@ const systemData = {
                 config: `resource "aws_opensearch_domain" "search_domain" {
   domain_name    = "search-catalog-domain"
   engine_version = "OpenSearch_2.11"
-
   cluster_config {
-    instance_type = "r6g.xlarge.search"
+    instance_type  = "r6g.xlarge.search"
     instance_count = 3
   }
 }`
@@ -844,7 +1083,23 @@ const systemData = {
   "tokens_delivered": 482,
   "ring_buffer_utilization": "12%"
 }`,
-                config: `# EKS Connection Gateway Deployment Config`
+                config: `resource "kubernetes_deployment" "eks_connection_gateway" {
+  metadata { name = "eks-connection-gateway" }
+  spec {
+    replicas = 8
+    selector { match_labels = { app = "eks-conn-gateway" } }
+    template {
+      metadata { labels = { app = "eks-conn-gateway" } }
+      spec {
+        container {
+          name  = "connection-broker"
+          image = "stream-broker:latest"
+          port { container_port = 8000 }
+        }
+      }
+    }
+  }
+}`
             },
             "redis": {
                 name: "ElastiCache Redis Pub/Sub",
@@ -882,7 +1137,17 @@ const systemData = {
   "active_workers": 8,
   "paged_attention_blocks_allocated": 1420
 }`,
-                config: `# Autoscaling Group mounting g5.xlarge instances with NVIDIA A10G GPUs`
+                config: `resource "aws_autoscaling_group" "gpu_asg" {
+  name                = "gpu-inference-workers-asg"
+  desired_capacity    = 4
+  max_size            = 12
+  min_size            = 2
+  vpc_zone_identifier = aws_subnet.private.*.id
+  launch_template {
+    id      = aws_launch_template.gpu_worker_lt.id
+    version = "$Latest"
+  }
+}`
             }
         }
     },
@@ -949,6 +1214,10 @@ const systemData = {
                 config: `resource "aws_dynamodb_table" "route_definitions" {
   name     = "api_gateway_routes"
   hash_key = "route_id"
+  attribute {
+    name = "route_id"
+    type = "S"
+  }
 }`
             },
             "s3": {
@@ -960,7 +1229,14 @@ const systemData = {
   "sub": "user_123",
   "token_use": "access"
 }`,
-                config: `# Cognito Authentication Validator integration config`
+                config: `resource "aws_cognito_user_pool" "gateway_auth" {
+  name = "api-gateway-user-pool"
+  password_policy {
+    minimum_length    = 8
+    require_lowercase = true
+    require_numbers   = true
+  }
+}`
             }
         }
     }
