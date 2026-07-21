@@ -16,7 +16,8 @@
   - [🗄️ Distributed File Storage System Design](#3-distributed-file-storage-system-design)
   - [🍔 Food Delivery System Design](#4-food-delivery-system-design)
   - [🧠 RAG Pipeline System Design](#5-rag-pipeline-system-design)
-  - [🤖 ChatGPT System Design](#6-chatgpt-system-design)
+  - [💾 Vector Database System Design](#6-vector-database-system-design)
+  - [🤖 ChatGPT System Design](#7-chatgpt-system-design)
 - [☕ Support](#-support)
 
 ---
@@ -120,7 +121,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 |---|-------|--------|
 | 1 | Design ChatGPT | ✅ [Blueprint](./chat_gpt/chatgpt_system_design.md) |
 | 2 | Design RAG Pipeline | ✅ [Blueprint](./rag_pipeline/rag_pipeline_system_design.md) |
-| 3 | Design Vector Database | ⬜ Planned |
+| 3 | Design Vector Database | ✅ [Blueprint](./vector_database/vector_database_system_design.md) |
 | 4 | Design AI Agent Framework | ⬜ Planned |
 | 5 | Design LLM Gateway | ⬜ Planned |
 | 6 | Design Semantic Search | ⬜ Planned |
@@ -259,7 +260,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
-| 7 | AI Systems | 7 | 2 | ✅✅⬜⬜⬜⬜⬜ |
+| 7 | AI Systems | 7 | 3 | ✅✅✅⬜⬜⬜⬜ |
 | 8 | Distributed Systems | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -269,7 +270,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **6** | **5.5%** |
+| | **Total** | **108** | **7** | **6.4%** |
 
 ---
 
@@ -422,7 +423,27 @@ End-to-end query flow showing parallel dense/sparse retrieval, RRF fusion, cross
 
 ---
 
-### 6. ChatGPT System Design
+### 6. Vector Database System Design
+A production-grade system design for a real-time, low-latency **Vector Database** (comparable to Qdrant or Milvus). Highlights LSM-tree segment architectures, metadata pre-filtering during graph traversal, scalar quantization calculations (reducing vector size from float32 to int8 for a 72% RAM footprint saving), and distributed shard coordinating mechanisms.
+
+* **Documentation:** [Vector Database System Design (vector_database_system_design.md)](./vector_database/vector_database_system_design.md)
+
+#### Vector Database Tech Stack Details (with AWS Service Mapping)
+* **Amazon EC2 (r6g memory-optimized nodes):** Holds the active in-memory HNSW index structures and executes vector/cosine-similarity calculations.
+* **Amazon EBS (gp3):** Provides fast local storage for sequential Write-Ahead Log (WAL) commits.
+* **Amazon ECS Fargate:** Hosts the stateless Proxy Coordination Cluster managing cluster schemas, shards routing, and gather queries.
+* **Amazon S3:** Serves as the backup snapshot registry for archiving segment indexes.
+
+#### Vector Database Architecture Diagrams
+
+##### A. High-Level Distributed Vector Database Architecture
+Visual layout showing proxy query routing, LSM-like mutable mem-segments, background compactor building the HNSW graphs, and immutable disk segments.
+
+![Distributed Vector Database Architecture](./vector_database/vector_database_system_architecture.png)
+
+---
+
+### 7. ChatGPT System Design
 A production-grade system design for a real-time, low-latency conversational AI platform (LLM conversational system). Handles streaming tokens, active session memory, context window compression, and GPU inference routing.
 
 * **Documentation:** [ChatGPT System Design (chatgpt_system_design.md)](./chat_gpt/chatgpt_system_design.md)
