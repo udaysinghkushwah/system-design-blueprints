@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 14 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 15 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -29,6 +29,7 @@ We have built a premium, interactive web dashboard to explore all 14 completed d
     - [🗄️ Distributed File Storage System Design](#13-distributed-file-storage-system-design)
     - [📂 Dropbox System Design](#14-dropbox-system-design)
     - [🅿️ Smart Parking Lot System Design](#15-smart-parking-lot-system-design)
+    - [📚 Smart Library Management System Design](#16-smart-library-management-system-design)
   - **Level 4 – Ride Sharing & Delivery**
     - [🍔 Food Delivery System Design](#41-food-delivery-system-design)
   - **Level 7 – AI Systems**
@@ -429,6 +430,34 @@ Visual layout detailing Ultrasonic sensors, MQTT event streams, ALPR gates, Spot
 Cloud-native layout showing edge gate ALPR cameras, AWS IoT Core, ECS Fargate allocation handlers, Lambda workers, Redis geohash caches, and DynamoDB/Aurora ticketing registries.
 
 ![AWS Cloud-Native Smart Parking Architecture](./level_1_core_system_design/parking_lot/parking_lot_aws_architecture.png)
+
+---
+
+---
+
+#### 1.6 Smart Library Management System Design
+A production-grade Enterprise Library Management System. Features multi-branch catalog search indexing (OpenSearch + Redis), lock-free barcode item checkout using Optimistic Concurrency Control (PostgreSQL OCC), FIFO hold reservation queues (Redis Sorted Sets), and offline branch kiosk edge resilience.
+
+* **Documentation:** [Smart Library Management System Design (library_management_system_design.md)](./level_1_core_system_design/library_management/library_management_system_design.md)
+
+#### Smart Library Management Tech Stack Details (with AWS Service Mapping)
+* **Amazon OpenSearch Service:** Inverted index powering full-text fuzzy title, author, and category catalog searches in $< 50\text{ms}$.
+* **Amazon Aurora PostgreSQL:** Relational database enforcing ACID transactions and Optimistic Concurrency Control (`version` tags) for barcode checkouts.
+* **Amazon ElastiCache for Redis:** Caches real-time book availability and manages FIFO hold reservation queues (`ZADD`/`ZPOPMIN`).
+* **Amazon ECS Fargate:** Hosts containerized microservices for checkouts, returns, and hold reservation engines.
+* **Amazon EventBridge + SQS/SNS:** Decouples checkout event streams from asynchronous member SMS/Email pickup notifications.
+
+#### Smart Library Management Architecture Diagrams
+
+##### A. High-Level System Architecture & Microservice Ingestion Flow
+Visual layout detailing Kiosk/Mobile Ingress, API Gateway, Catalog Search Service, Borrowing & Inventory Engine, Hold Reservation Queue, and EventBridge Notification Workers.
+
+![Smart Library Management System Architecture](./level_1_core_system_design/library_management/library_management_system_architecture.png)
+
+##### B. AWS Cloud-Native Smart Library Architecture
+Cloud-native layout showing multi-AZ VPC subnets, Route 53, CloudFront/WAF, API Gateway, ALB, ECS Fargate tasks, Lambda CDC workers, Aurora PostgreSQL, ElastiCache Redis, and OpenSearch.
+
+![AWS Cloud-Native Smart Library Architecture](./level_1_core_system_design/library_management/library_management_aws_architecture.png)
 
 ---
 
