@@ -172,7 +172,7 @@ $$\text{ETA}(c, f_s) = T_{\text{travel}}(f_{\text{curr}}, f_s) + \sum_{k \in S_{
 
 Where:
 * **$T_{\text{travel}}(f_{\text{curr}}, f_s)$**: Direct acceleration, cruise, and deceleration transit time:
-  $$T_{\text{travel}} = \frac{|f_s - f_{\text{curr}}| \times h_{\text{floor}}}{v_{\text{rated}}} + t_{\text{accel\_decel\_overhead}}$$
+  $$T_{\text{travel}}(f_{\text{curr}}, f_s) = \frac{|f_s - f_{\text{curr}}| \times h_{\text{floor}}}{v_{\text{rated}}} + t_{\text{overhead}}$$
 * **$S_{\text{intervening}}$**: Set of pre-scheduled stops between current floor $f_{\text{curr}}$ and target floor $f_s$.
 * **$T_{\text{stop}}$**: Fixed door dwell cycle time per stop ($7.0 \text{ seconds}$).
 * **$W_{\text{load}}(c)$**: Weight capacity penalty. If current load exceeds $80\%$, $W_{\text{load}} = +\infty$ (bypasses hall pick-up).
