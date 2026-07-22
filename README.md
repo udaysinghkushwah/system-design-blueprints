@@ -60,7 +60,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 3 | Design File Storage System | ✅ [Blueprint](./level_1_core_system_design/file_storage/file_storage_system_design.md) |
 | 4 | Design Dropbox | ✅ [Blueprint](./level_1_core_system_design/dropbox/dropbox_system_design.md) |
 | 5 | Design Parking Lot | ✅ [Blueprint](./level_1_core_system_design/parking_lot/parking_lot_system_design.md) |
-| 6 | Design Library Management System | ⬜ Planned |
+| 6 | Design Library Management System | ✅ [Blueprint](./level_1_core_system_design/library_management/library_management_system_design.md) |
 | 7 | Design ATM System | ⬜ Planned |
 | 8 | Design Elevator System | ⬜ Planned |
 | 9 | Design Hotel Booking System | ⬜ Planned |

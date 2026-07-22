@@ -494,6 +494,55 @@ const systemData = {
             }
         }
     },
+    library_management: {
+        title: "Smart Library Management System",
+        description: "Multi-branch catalog search engine, optimistic barcode checkout allocator, and hold queue reservation system.",
+        docLink: "viewer.html?file=level_1_core_system_design/library_management/library_management_system_design.md",
+        techStack: [
+            { service: "Amazon API Gateway", role: "Handles JWT authentication, rate limiting, and kiosk REST endpoints." },
+            { service: "Amazon OpenSearch Service", role: "Powers full-text fuzzy title, author, and category catalog searches." },
+            { service: "Amazon ECS Fargate", role: "Deploys microservices for checkouts, returns, and hold reservation queues." },
+            { service: "Amazon ElastiCache for Redis", role: "Caches real-time book availability and manages FIFO hold reservation sorted sets." },
+            { service: "Amazon Aurora PostgreSQL", role: "Serves as the durable relational ledger for checkouts, member balances, and OCC versioning." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "API Gateway & Edge Kiosks",
+                category: "API Gateway & Kiosk Ingress",
+                description: "Ingests barcode checkout scans, return chute scans, and member mobile app catalog queries.",
+                payload: `POST /api/v1/checkouts\n{\n  "barcode_id": "BARCODE-CS-90123",\n  "member_id": "4a716550-0000-41d4-a716-446655440000"\n}`,
+                config: `resource "aws_api_gateway_rest_api" "library_api" {\n  name        = "library-management-api"\n  description = "Ingress for branch kiosks and member app"\n}`
+            },
+            "opensearch": {
+                name: "Amazon OpenSearch Cluster",
+                category: "Catalog Search Engine",
+                description: "Inverted index for sub-50ms full-text catalog queries on ISBNs, titles, authors, and subject tags.",
+                payload: `GET /api/v1/catalog/search?query=distributed+systems\n{"total_hits": 42}`,
+                config: `resource "aws_opensearch_domain" "catalog_search" {\n  domain_name    = "library-catalog-index"\n  engine_version = "OpenSearch_2.11"\n  cluster_config {\n    instance_type = "r6g.large.search"\n  }\n}`
+            },
+            "proxy": {
+                name: "ECS Fargate Microservices",
+                category: "Compute Engine",
+                description: "Processes checkout validation, OCC database updates, fine calculations, and queue triggers.",
+                payload: `UPDATE book_items SET status = 'CHECKED_OUT', version = version + 1 WHERE barcode_id = 'BARCODE-CS-90123' AND version = 4;`,
+                config: `resource "aws_ecs_service" "borrowing_service" {\n  name            = "library-borrowing-engine"\n  cluster         = aws_ecs_cluster.library_cluster.id\n  task_definition = aws_ecs_task_definition.borrowing_task.arn\n  desired_count   = 3\n}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Hold Queue",
+                category: "Cache & Hold Queue",
+                description: "Manages real-time availability counters and FIFO sorted sets (ZADD/ZPOPMIN) for ISBN reservations.",
+                payload: `ZADD hold:isbn:9871449373320 1784643600 "member_uuid_8877"`,
+                config: `resource "aws_elasticache_cluster" "hold_queue_cache" {\n  cluster_id           = "library-hold-queue-cache"\n  engine               = "redis"\n  node_type            = "cache.t4g.medium"\n  num_cache_nodes      = 1\n}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Durable Ledger",
+                description: "ACID-compliant SQL database for books metadata, physical items, members, checkouts, and fines.",
+                payload: `INSERT INTO checkouts (barcode_id, member_id, due_date) VALUES ('BARCODE-CS-90123', 'member_uuid', NOW() + INTERVAL '14 days');`,
+                config: `resource "aws_rds_cluster" "library_db" {\n  cluster_identifier = "library-management-db"\n  engine             = "aurora-postgresql"\n  database_name      = "library_ledger"\n}`
+            }
+        }
+    },
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
@@ -1487,6 +1536,47 @@ function renderSVG() {
             <g class="interactive-node" id="db" transform="translate(420, 300)">
                 <rect x="0" y="0" width="200" height="60" rx="8" fill="#111827" stroke="#4caf50" stroke-width="1.5" />
                 <text x="100" y="35" font-family="Outfit" font-size="11" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "library_management") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC (Enterprise Library Network)</text>
+
+            <path d="M120 250 L 200 250" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 220 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 280 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M520 250 L 520 300" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <path class="data-flow-line" d="M120 250 L 200 250" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 220 L 420 170" stroke="#c084fc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 280 L 420 330" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M520 250 L 520 300" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <g class="interactive-node" id="ingress" transform="translate(40, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">API GW /</text>
+                <text x="40" y="55" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">Kiosks</text>
+            </g>
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">ECS Fargate</text>
+                <text x="70" y="70" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Borrowing Engine</text>
+            </g>
+            <g class="interactive-node" id="opensearch" transform="translate(420, 120)">
+                <rect x="0" y="0" width="200" height="100" rx="10" fill="#111827" stroke="#c084fc" stroke-width="2" />
+                <text x="100" y="45" font-family="Outfit" font-size="13" fill="#c084fc" font-weight="700" text-anchor="middle">OpenSearch</text>
+                <text x="100" y="70" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Catalog Inverted Index</text>
+            </g>
+            <g class="interactive-node" id="redis" transform="translate(420, 280)">
+                <rect x="0" y="0" width="200" height="70" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="100" y="35" font-family="Outfit" font-size="12" fill="#ab47bc" font-weight="700" text-anchor="middle">Redis Hold Queue</text>
+                <text x="100" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">ZADD/ZPOPMIN</text>
+            </g>
+            <g class="interactive-node" id="db" transform="translate(200, 340)">
+                <rect x="0" y="0" width="140" height="60" rx="8" fill="#111827" stroke="#4caf50" stroke-width="1.5" />
+                <text x="70" y="35" font-family="Outfit" font-size="11" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
             </g>
         </svg>`;
     } else if (currentSystem === "rag_pipeline") {
