@@ -2132,6 +2132,10 @@ function updateNodeInspector() {
 // Update System Tech Stack Details
 function updateSystemOverview() {
     const system = systemData[currentSystem];
+    if (!system) return;
+
+    systemTitle.innerText = system.title;
+    systemDescription.innerText = system.description;
     
     // Set doc link
     docLinkButton.setAttribute("href", system.docLink);
