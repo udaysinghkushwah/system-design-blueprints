@@ -64,7 +64,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 5 | Design Parking Lot | ✅ [Blueprint](./level_1_core_system_design/parking_lot/parking_lot_system_design.md) |
 | 6 | Design Library Management System | ✅ [Blueprint](./level_1_core_system_design/library_management/library_management_system_design.md) |
 | 7 | Design ATM System | ✅ [Blueprint](./level_1_core_system_design/atm/atm_system_design.md) |
-| 8 | Design Elevator System | ⬜ Planned |
+| 8 | Design Elevator System | ✅ [Blueprint](./level_1_core_system_design/elevator_system/elevator_system_design.md) |
 | 9 | Design Hotel Booking System | ⬜ Planned |
 
 ---
@@ -490,6 +490,39 @@ Visual layout detailing physical ATM terminals, ISO 8583 Message Switch, AWS Clo
 Cloud-native layout showing NLB TCP ingress, private VPC compute subnets with CloudHSM and ECS Fargate switches, Aurora PostgreSQL master/replica ledgers, ElastiCache Redis, and EventBridge/SQS/SNS messaging networks.
 
 ![AWS Cloud-Native ATM Banking Architecture](./level_1_core_system_design/atm/atm_aws_architecture.png)
+
+---
+
+---
+
+<a id="18-smart-multi-elevator-control-system-design"></a>
+<a id="18-elevator-system-design"></a>
+#### 1.8 Design Elevator System
+A production-grade, IoT-enabled Multi-Elevator Control & Dispatch System for high-rise commercial skyscrapers and residential towers (e.g., 100 floors, 24 elevator cars across 4 zone banks). Features Destination Dispatch System (DDS), Minimum Estimated Time of Arrival (ETA) scheduling algorithms, finite state machine car control, lock-free Redis min-heap priority queues, 10 Hz MQTT telemetry ingestion, and AWS cloud-native edge-failover architecture.
+
+* **Documentation:** [Smart Multi-Elevator Control System Design (elevator_system_design.md)](./level_1_core_system_design/elevator_system/elevator_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (elevator_api_spec.yaml)](./level_1_core_system_design/elevator_system/elevator_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_1_core_system_design/elevator_system/mock_server.py) (run using `python3 level_1_core_system_design/elevator_system/mock_server.py`)
+
+#### Elevator System Tech Stack Details (with AWS Service Mapping)
+* **AWS IoT Core:** Managed MQTT message broker handling sub-100ms 10 Hz real-time telemetry streaming from 24+ elevator cars.
+* **Amazon API Gateway:** HTTPS/gRPC REST API ingress for lobby destination kiosks and mobile elevator request endpoints.
+* **AWS ECS Fargate:** Deploys containerized Destination Dispatch Engine microservices running Minimum ETA calculation algorithms.
+* **Amazon ElastiCache for Redis:** Sub-millisecond in-memory cache holding real-time car state grids, min-heap stop priority queues, and atomic locks.
+* **Amazon Aurora PostgreSQL:** Relational database for elevator car registries, passenger trip audit logs, and maintenance schedules.
+* **Amazon Kinesis Data Streams + Lambda:** Real-time telemetry ingestion pipeline for predictive maintenance models and safety anomaly detection.
+
+#### Elevator System Architecture Diagrams
+
+##### A. High-Level System Architecture & Dispatch Ingestion Flow
+Visual layout detailing Lobby Touch Kiosks, Edge Microcontrollers & PLC controllers, Destination Dispatch Engine, Redis State Grid, and IoT Telemetry Broker.
+
+![Smart Multi-Elevator System Architecture](./level_1_core_system_design/elevator_system/elevator_system_architecture.png)
+
+##### B. AWS Cloud-Native Smart Elevator Architecture
+Cloud-native layout showing AWS IoT Core MQTT ingress, API Gateway, ECS Fargate Destination Dispatch Engine, ElastiCache Redis, Aurora PostgreSQL, Kinesis streaming analytics, and EventBridge alert routing.
+
+![AWS Cloud-Native Smart Elevator Architecture](./level_1_core_system_design/elevator_system/elevator_aws_architecture.png)
 
 ---
 

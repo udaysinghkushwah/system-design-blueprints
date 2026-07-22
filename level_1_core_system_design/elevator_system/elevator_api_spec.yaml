@@ -1,0 +1,261 @@
+openapi: 3.0.0
+info:
+  title: Smart Multi-Elevator System API
+  description: API Contracts for Destination Dispatch Kiosks, Hall Call Buttons, Elevator State Queries, and IoT Telemetry Ingestion.
+  version: 1.0.0
+servers:
+  - url: https://api.smartbuilding.com/v1
+    description: Production API Server
+  - url: http://localhost:8088/v1
+    description: Local Mock Server
+paths:
+  /dispatch/request:
+    post:
+      summary: Register destination dispatch call
+      description: Passengers select their source and target floor at lobby kiosks before boarding. The system assigns the optimal elevator car based on Minimum ETA algorithms.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DispatchRequest'
+      responses:
+        '200':
+          description: Elevator assignment successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DispatchResponse'
+        '400':
+          description: Invalid request parameters
+
+  /elevator/call:
+    post:
+      summary: Hall call request (Up/Down button)
+      description: Intermediate floor hall call button press for non-destination dispatch zones or legacy elevator banks.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HallCallRequest'
+      responses:
+        '200':
+          description: Hall call registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HallCallResponse'
+
+  /elevators/{carId}/state:
+    get:
+      summary: Get elevator car state
+      description: Queries real-time elevator car metrics including floor location, speed, direction, door status, and load percentage.
+      parameters:
+        - name: carId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Real-time elevator status details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ElevatorStateDetails'
+        '404':
+          description: Elevator car not found
+
+  /telemetry/ingest:
+    post:
+      summary: Ingest elevator IoT telemetry stream
+      description: Endpoint for local car PLCs to push 10 Hz high-frequency telemetry metrics (position, weight load, door sensors, and fault flags).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TelemetryUpdate'
+      responses:
+        '200':
+          description: Telemetry ingested successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+
+components:
+  schemas:
+    DispatchRequest:
+      type: object
+      required:
+        - kiosk_id
+        - source_floor
+        - destination_floor
+      properties:
+        kiosk_id:
+          type: string
+          example: kiosk_lobby_north_02
+        source_floor:
+          type: integer
+          example: 1
+        destination_floor:
+          type: integer
+          example: 45
+        passenger_count:
+          type: integer
+          default: 1
+          example: 1
+        accessibility_required:
+          type: boolean
+          default: false
+          example: false
+
+    DispatchResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: SUCCESS
+        request_id:
+          type: string
+          format: uuid
+          example: 8f3b2a11-5d9c-4e81-b201-9a1122334455
+        assigned_elevator:
+          type: object
+          properties:
+            elevator_id:
+              type: string
+              format: uuid
+              example: e3012345-0000-0000-0000-000000000002
+            bank_name:
+              type: string
+              example: Mid-Rise Bank
+            car_label:
+              type: string
+              example: Elevator B
+            current_floor:
+              type: integer
+              example: 12
+            estimated_wait_seconds:
+              type: number
+              format: float
+              example: 14.5
+
+    HallCallRequest:
+      type: object
+      required:
+        - floor_number
+        - direction
+      properties:
+        floor_number:
+          type: integer
+          example: 18
+        direction:
+          type: string
+          enum: [UP, DOWN]
+          example: UP
+
+    HallCallResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: REGISTERED
+        floor_number:
+          type: integer
+          example: 18
+        direction:
+          type: string
+          example: UP
+        assigned_car_label:
+          type: string
+          example: Elevator C
+
+    ElevatorStateDetails:
+      type: object
+      properties:
+        elevator_id:
+          type: string
+          format: uuid
+          example: e3012345-0000-0000-0000-000000000002
+        car_number:
+          type: integer
+          example: 2
+        bank_name:
+          type: string
+          example: Mid-Rise Bank
+        current_floor:
+          type: integer
+          example: 14
+        target_floor:
+          type: integer
+          example: 45
+        direction:
+          type: string
+          enum: [UP, DOWN, IDLE]
+          example: UP
+        state:
+          type: string
+          enum: [IDLE, MOVING, DOOR_OPEN, MAINTENANCE, EMERGENCY]
+          example: MOVING
+        weight_kg:
+          type: number
+          format: float
+          example: 640.0
+        load_percentage:
+          type: number
+          format: float
+          example: 40.0
+
+    TelemetryUpdate:
+      type: object
+      required:
+        - timestamp
+        - elevator_id
+        - current_floor
+        - direction
+        - state
+      properties:
+        timestamp:
+          type: integer
+          example: 1784722200100
+        elevator_id:
+          type: string
+          format: uuid
+          example: e3012345-0000-0000-0000-000000000002
+        current_floor:
+          type: integer
+          example: 14
+        velocity_m_s:
+          type: number
+          format: float
+          example: 4.0
+        direction:
+          type: string
+          example: UP
+        state:
+          type: string
+          example: MOVING
+        door_state:
+          type: string
+          example: CLOSED
+        weight_kg:
+          type: number
+          format: float
+          example: 640.0
+        fault_flags:
+          type: object
+          properties:
+            light_curtain_blocked:
+              type: boolean
+              example: false
+            safety_chain_broken:
+              type: boolean
+              example: false

@@ -592,6 +592,55 @@ const systemData = {
             }
         }
     },
+    elevator_system: {
+        title: "Smart Multi-Elevator Control System",
+        description: "Destination Dispatch System (DDS), Minimum ETA scheduling math, 10 Hz MQTT telemetry ingestion, and Redis min-heap priority queues.",
+        docLink: "viewer.html?file=level_1_core_system_design/elevator_system/elevator_system_design.md",
+        techStack: [
+            { service: "AWS IoT Core", role: "Managed MQTT broker handling sub-100ms 10 Hz real-time telemetry streaming from 24+ elevator cars." },
+            { service: "Amazon API Gateway", role: "HTTPS/gRPC REST API ingress for lobby destination kiosks and mobile elevator request endpoints." },
+            { service: "AWS ECS Fargate", role: "Deploys containerized Destination Dispatch Engine microservices running Minimum ETA calculation algorithms." },
+            { service: "Amazon ElastiCache for Redis", role: "Sub-millisecond in-memory cache holding real-time car state grids, min-heap stop priority queues, and atomic locks." },
+            { service: "Amazon Aurora PostgreSQL", role: "Relational database for elevator car registries, passenger trip audit logs, and maintenance schedules." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Lobby Kiosks & API Gateway",
+                category: "Kiosk REST & gRPC Ingress",
+                description: "Ingests passenger destination floor requests (e.g. Lobby -> Floor 45) and displays assigned car labels (e.g. Elevator B).",
+                payload: `POST /api/v1/dispatch/request\n{\n  "kiosk_id": "kiosk_lobby_north_02",\n  "source_floor": 1,\n  "destination_floor": 45\n}`,
+                config: `resource "aws_api_gateway_rest_api" "elevator_api" {\n  name        = "elevator-dispatch-api"\n  description = "Ingress for lobby kiosks and mobile app"\n}`
+            },
+            "mqtt": {
+                name: "AWS IoT Core (MQTT Broker)",
+                category: "IoT Telemetry Ingress",
+                description: "Maintains persistent TCP/TLS MQTT sessions for 24+ elevator car PLCs publishing 10 Hz telemetry metrics.",
+                payload: `TOPIC: building/bank1/elevator/2/telemetry\n{\n  "car_number": 2,\n  "current_floor": 14,\n  "direction": "UP",\n  "state": "MOVING",\n  "weight_kg": 640.0\n}`,
+                config: `resource "aws_iot_topic_rule" "telemetry_rule" {\n  name        = "ElevatorTelemetryIngest"\n  sql         = "SELECT * FROM 'building/+/elevator/+/telemetry'"\n  sql_version = "2016-03-23"\n}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Dispatch Engine)",
+                category: "Minimum ETA Scheduler",
+                description: "Executes Minimum ETA cost function J(c) considering car travel time, door cycles, weight penalties, and direction alignment.",
+                payload: `J(c) = ETA_wait(c) + ETA_travel(c) + W_load(c) + P_dir(c) => Selected Car B (Wait: 14.5s)`,
+                config: `resource "aws_ecs_service" "dispatch_engine" {\n  name            = "elevator-dispatch-engine"\n  cluster         = aws_ecs_cluster.elevator_cluster.id\n  task_definition = aws_ecs_task_definition.dispatch_task.arn\n  desired_count   = 3\n}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Priority Queues",
+                category: "Cache & Stop Queues",
+                description: "Holds real-time car state hash grid (\`elevator:{id}:state\`) and sorted ZSET min-heap stop queues (\`up_stops\`, \`down_stops\`).",
+                payload: `ZADD elevator:car_b:up_stops 1 1\nZADD elevator:car_b:up_stops 45 45`,
+                config: `resource "aws_elasticache_cluster" "elevator_state_grid" {\n  cluster_id           = "elevator-state-grid"\n  engine               = "redis"\n  node_type            = "cache.t4g.medium"\n  num_cache_nodes      = 1\n}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Durable System Ledger",
+                description: "Relational database for elevator master registry, trip audit records, and maintenance logs.",
+                payload: `INSERT INTO dispatch_requests (kiosk_id, source_floor, destination_floor, assigned_car_id) VALUES ('kiosk_02', 1, 45, 'car_b_uuid');`,
+                config: `resource "aws_rds_cluster" "elevator_db" {\n  cluster_identifier = "elevator-control-db"\n  engine             = "aurora-postgresql"\n  database_name      = "elevator_system"\n}`
+            }
+        }
+    },
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
@@ -1706,6 +1755,48 @@ function renderSVG() {
             <g class="interactive-node" id="bedrock" transform="translate(640, 210)">
                 <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
                 <text x="40" y="45" font-family="Outfit" font-size="12" fill="#ab47bc" font-weight="700" text-anchor="middle">Bedrock LLM</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "elevator_system") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC (Elevator Control Core)</text>
+
+            <path d="M120 170 L 200 220" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M120 330 L 200 270" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 250 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 250 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <path class="data-flow-line" d="M120 170 L 200 220" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M120 330 L 200 270" stroke="#00e676" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 250 L 420 170" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 250 L 420 330" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <g class="interactive-node" id="ingress" transform="translate(40, 130)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">API Gateway</text>
+                <text x="40" y="55" font-family="Outfit" font-size="11" fill="#ff9800" font-weight="700" text-anchor="middle">Lobby Kiosk</text>
+            </g>
+            <g class="interactive-node" id="mqtt" transform="translate(40, 290)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#00e676" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="12" fill="#00e676" font-weight="700" text-anchor="middle">AWS IoT</text>
+                <text x="40" y="55" font-family="Outfit" font-size="11" fill="#00e676" font-weight="700" text-anchor="middle">MQTT Broker</text>
+            </g>
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">ECS Fargate</text>
+                <text x="70" y="70" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Dispatch Engine</text>
+            </g>
+            <g class="interactive-node" id="redis" transform="translate(420, 120)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#ab47bc" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">State Grid & Min-Heap Queues</text>
+            </g>
+            <g class="interactive-node" id="db" transform="translate(420, 280)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#4caf50" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Car Registry & Trip Ledger</text>
             </g>
         </svg>`;
     } else if (currentSystem === "vector_database") {
