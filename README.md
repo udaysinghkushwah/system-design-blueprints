@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 16 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 18 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -31,6 +31,8 @@ We have built a premium, interactive web dashboard to explore all 16 completed d
     - [🅿️ Smart Parking Lot System Design](#15-smart-parking-lot-system-design)
     - [📚 Smart Library Management System Design](#16-smart-library-management-system-design)
     - [🏧 Automated Teller Machine (ATM) System Design](#17-automated-teller-machine-atm-system-design)
+    - [🛗 Smart Multi-Elevator Control System Design](#18-smart-multi-elevator-control-system-design)
+    - [🏨 Global Hotel Booking System Design](#19-global-hotel-booking-system-design)
   - **Level 4 – Ride Sharing & Delivery**
     - [🍔 Food Delivery System Design](#41-food-delivery-system-design)
   - **Level 7 – AI Systems**
@@ -277,7 +279,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | Level | Category | Total | Completed | Progress |
 |-------|----------|-------|-----------|----------|
-| 1 | Core System Design | 9 | 5 | ✅✅✅✅✅⬜⬜⬜⬜ |
+| 1 | Core System Design | 9 | 9 | ✅✅✅✅✅✅✅✅✅ |
 | 2 | Popular Real-world Systems | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
@@ -293,7 +295,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **14** | **13.0%** |
+| | **Total** | **108** | **18** | **16.7%** |
 
 ---
 
