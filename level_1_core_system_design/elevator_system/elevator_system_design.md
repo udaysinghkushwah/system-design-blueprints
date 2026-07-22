@@ -74,26 +74,26 @@ The architecture decouples the **Passenger Input & Gate Layer** from the **Edge 
 ```mermaid
 graph TD
     %% Passenger Layer
-    Kiosk[Lobby Destination Kiosk] -->|REST / gRPC| Dispatcher[Destination Dispatch Engine]
-    HallBtn[Floor Hall Button] -->|CAN Bus Signal| PLC[Local PLC Car Controller]
-    App[Mobile App / NFC Reader] -->|API Gateway| Dispatcher
+    Kiosk["Lobby Destination Kiosk"] -->|"REST / gRPC"| Dispatcher["Destination Dispatch Engine"]
+    HallBtn["Floor Hall Button"] -->|"CAN Bus Signal"| PLC["Local PLC Car Controller"]
+    App["Mobile App / NFC Reader"] -->|"API Gateway"| Dispatcher
 
     %% Control & Dispatch Layer
-    Dispatcher <-->|1. Read/Write Car State| StateGrid[(ElastiCache Redis State Grid)]
-    Dispatcher -->|2. Compute Lowest ETA| ETACalc[Minimum ETA Scheduler]
-    Dispatcher -->|3. Assign Car ID| Kiosk
+    Dispatcher <-->|"1. Read/Write Car State"| StateGrid[("ElastiCache Redis State Grid")]
+    Dispatcher -->|"2. Compute Lowest ETA"| ETACalc["Minimum ETA Scheduler"]
+    Dispatcher -->|"3. Assign Car ID"| Kiosk
 
     %% Hardware & Edge Execution
-    Dispatcher -->|4. Push Motion Command| PLC
-    PLC -->|Drive Motor & Doors| Motor[Elevator Traction Motor & Doors]
-    Sensors[Weight Sensor / Laser Position / Door Light Curtain] -->|State Telemetry| PLC
+    Dispatcher -->|"4. Push Motion Command"| PLC
+    PLC -->|"Drive Motor & Doors"| Motor["Elevator Traction Motor & Doors"]
+    Sensors["Weight Sensor / Laser Position / Door Light Curtain"] -->|"State Telemetry"| PLC
 
     %% Ingestion & Analytics
-    PLC -->|5. MQTT Telemetry (10 Hz)| MQTT[AWS IoT Core / MQTT Broker]
-    MQTT -->|Real-time Ingress| TelemetryIngest[Telemetry Ingestion Service]
-    TelemetryIngest -->|Update Live Position| StateGrid
-    TelemetryIngest -->|Stream Logs| Kinesis[Amazon Kinesis Stream]
-    Kinesis -->|Cold Storage| TSDB[(Amazon Aurora PostgreSQL / Timestream)]
+    PLC -->|"5. MQTT Telemetry (10 Hz)"| MQTT["AWS IoT Core / MQTT Broker"]
+    MQTT -->|"Real-time Ingress"| TelemetryIngest["Telemetry Ingestion Service"]
+    TelemetryIngest -->|"Update Live Position"| StateGrid
+    TelemetryIngest -->|"Stream Logs"| Kinesis["Amazon Kinesis Stream"]
+    Kinesis -->|"Cold Storage"| TSDB[("Amazon Aurora PostgreSQL / Timestream")]
 ```
 
 ---
