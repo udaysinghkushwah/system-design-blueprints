@@ -161,14 +161,14 @@ To prevent another user from taking a room while the passenger enters their cred
 ### D. Dynamic Rate Pricing Formula
 Room rates fluctuate based on real-time occupancy levels, booking lead time, and seasonal multipliers:
 
-$$\text{Final Rate} = \text{Base Tariff} \times M_{\text{season}} \times M_{\text{occupancy}} \times M_{\text{lead\_time}}$$
+$$\text{Final Rate} = \text{Base Tariff} \times M_{\text{season}} \times M_{\text{occupancy}} \times M_{\text{leadtime}}$$
 
 Where:
 * **$M_{\text{occupancy}}$**: Occupancy surge multiplier:
   * Occupancy $< 50\% \rightarrow 1.0\times$
   * $50\% \le \text{Occupancy} < 80\% \rightarrow 1.25\times$
   * Occupancy $\ge 80\% \rightarrow 1.6\times$
-* **$M_{\text{lead\_time}}$**: Last-minute booking surcharge ($< 24\text{ hours} \rightarrow 1.3\times$).
+* **$M_{\text{leadtime}}$**: Last-minute booking surcharge ($< 24\text{ hours} \rightarrow 1.3\times$).
 
 ---
 
