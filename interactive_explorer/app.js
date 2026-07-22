@@ -543,6 +543,55 @@ const systemData = {
             }
         }
     },
+    atm_system: {
+        title: "Automated Teller Machine (ATM) System",
+        description: "ISO 8583 financial switch, CloudHSM PIN decryption, Saga 2PC withdrawal engine, and Redis cassette inventory tracker.",
+        docLink: "viewer.html?file=level_1_core_system_design/atm/atm_system_design.md",
+        techStack: [
+            { service: "AWS Network Load Balancer (NLB)", role: "High-throughput TCP socket load balancer handling 50,000+ persistent ATM terminal links." },
+            { service: "AWS CloudHSM Cluster", role: "FIPS 140-2 Level 3 dedicated hardware security module for DUKPT PIN block decryption." },
+            { service: "Amazon ECS Fargate", role: "Hosts containerized ISO 8583 message switch services and Saga Transaction Orchestrators." },
+            { service: "Amazon ElastiCache for Redis", role: "Tracks real-time bill counts per cassette slot and executes greedy/DP note allocation routines." },
+            { service: "Amazon Aurora PostgreSQL", role: "Serves as the durable system of record for customer accounts, balances, and Saga ledgers." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Network Load Balancer & ATM Switch",
+                category: "NLB & ISO 8583 Switch Ingress",
+                description: "Ingests encrypted ISO 8583 binary transaction streams from physical ATM terminals over secure TCP sockets.",
+                payload: `ISO 8583 MTI: 0200 (Financial Request)\n{\n  "terminal_code": "ATM-NY-90210",\n  "amount_cents": 13000,\n  "pin_block_encrypted": "9F1A2B3C4D5E6F708192A3B4C5D6E7F8"\n}`,
+                config: `resource "aws_lb" "atm_nlb" {\n  name               = "atm-switch-nlb"\n  load_balancer_type = "network"\n  internal           = false\n}`
+            },
+            "cloudhsm": {
+                name: "AWS CloudHSM Cluster",
+                category: "Hardware Security Module",
+                description: "Dedicated hardware cluster performing hardware-level DUKPT PIN decryption and PIN Block validation.",
+                payload: `HSM_VERIFY_PIN_BLOCK(pin_block="9F1A2B3C", ksn="9876543210") => STATUS: VALID`,
+                config: `resource "aws_cloudhsm_v2_cluster" "atm_hsm" {\n  hsm_type   = "hsm1.medium"\n  subnet_ids = [aws_subnet.private_1.id, aws_subnet.private_2.id]\n}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Saga Coordinator)",
+                category: "Compute & Transaction Core",
+                description: "Orchestrates Saga Two-Phase Commit withdrawals, account holds, hardware jam compensation, and funds debits.",
+                payload: `EXECUTE SAGA: Reserve Account Balance ($130) -> Reserve Cassette Bills (1x $100, 1x $20, 1x $10) -> Confirm Dispense -> Commit Debit`,
+                config: `resource "aws_ecs_service" "saga_coordinator" {\n  name            = "atm-saga-coordinator"\n  cluster         = aws_ecs_cluster.atm_cluster.id\n  task_definition = aws_ecs_task_definition.saga_task.arn\n  desired_count   = 4\n}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Cassette Inventory",
+                category: "Cache & Cassette Tracking",
+                description: "Holds real-time note counts for $10, $20, $50, and $100 cassette slots; runs bill allocation routines.",
+                payload: `HGETALL atm:cassettes:ATM-NY-90210 => {"slot_1_100": 450, "slot_2_50": 120, "slot_3_20": 800, "slot_4_10": 950}`,
+                config: `resource "aws_elasticache_cluster" "cassette_cache" {\n  cluster_id           = "atm-cassette-inventory"\n  engine               = "redis"\n  node_type            = "cache.t4g.medium"\n  num_cache_nodes      = 1\n}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Durable CBS Ledger",
+                description: "ACID system of record for account balances, held funds, daily limits, and transaction audit ledgers.",
+                payload: `UPDATE accounts SET balance_cents = balance_cents - 13000, version = version + 1 WHERE account_number = 'ACC-99881122' AND version = 5;`,
+                config: `resource "aws_rds_cluster" "cbs_ledger_db" {\n  cluster_identifier = "atm-cbs-ledger-db"\n  engine             = "aurora-postgresql"\n  database_name      = "cbs_ledger"\n}`
+            }
+        }
+    },
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
@@ -1573,6 +1622,47 @@ function renderSVG() {
                 <rect x="0" y="0" width="200" height="70" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
                 <text x="100" y="35" font-family="Outfit" font-size="12" fill="#ab47bc" font-weight="700" text-anchor="middle">Redis Hold Queue</text>
                 <text x="100" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">ZADD/ZPOPMIN</text>
+            </g>
+            <g class="interactive-node" id="db" transform="translate(200, 340)">
+                <rect x="0" y="0" width="140" height="60" rx="8" fill="#111827" stroke="#4caf50" stroke-width="1.5" />
+                <text x="70" y="35" font-family="Outfit" font-size="11" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "atm_system") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC (Banking Network Core)</text>
+
+            <path d="M120 250 L 200 250" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 220 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 280 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M520 250 L 520 300" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <path class="data-flow-line" d="M120 250 L 200 250" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 220 L 420 170" stroke="#00e676" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 280 L 420 330" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M520 250 L 520 300" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <g class="interactive-node" id="ingress" transform="translate(40, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">NLB / ISO</text>
+                <text x="40" y="55" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">8583 Switch</text>
+            </g>
+            <g class="interactive-node" id="cloudhsm" transform="translate(420, 120)">
+                <rect x="0" y="0" width="200" height="90" rx="10" fill="#111827" stroke="#00e676" stroke-width="2" />
+                <text x="100" y="40" font-family="Outfit" font-size="13" fill="#00e676" font-weight="700" text-anchor="middle">AWS CloudHSM</text>
+                <text x="100" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">DUKPT PIN Decryption</text>
+            </g>
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">ECS Fargate</text>
+                <text x="70" y="70" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Saga Coordinator</text>
+            </g>
+            <g class="interactive-node" id="redis" transform="translate(420, 280)">
+                <rect x="0" y="0" width="200" height="70" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="100" y="35" font-family="Outfit" font-size="12" fill="#ab47bc" font-weight="700" text-anchor="middle">Redis Cassette Cache</text>
+                <text x="100" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Note Allocation Routine</text>
             </g>
             <g class="interactive-node" id="db" transform="translate(200, 340)">
                 <rect x="0" y="0" width="140" height="60" rx="8" fill="#111827" stroke="#4caf50" stroke-width="1.5" />

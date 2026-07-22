@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 15 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 16 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -30,6 +30,7 @@ We have built a premium, interactive web dashboard to explore all 15 completed d
     - [📂 Dropbox System Design](#14-dropbox-system-design)
     - [🅿️ Smart Parking Lot System Design](#15-smart-parking-lot-system-design)
     - [📚 Smart Library Management System Design](#16-smart-library-management-system-design)
+    - [🏧 Automated Teller Machine (ATM) System Design](#17-automated-teller-machine-atm-system-design)
   - **Level 4 – Ride Sharing & Delivery**
     - [🍔 Food Delivery System Design](#41-food-delivery-system-design)
   - **Level 7 – AI Systems**
@@ -62,7 +63,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 4 | Design Dropbox | ✅ [Blueprint](./level_1_core_system_design/dropbox/dropbox_system_design.md) |
 | 5 | Design Parking Lot | ✅ [Blueprint](./level_1_core_system_design/parking_lot/parking_lot_system_design.md) |
 | 6 | Design Library Management System | ✅ [Blueprint](./level_1_core_system_design/library_management/library_management_system_design.md) |
-| 7 | Design ATM System | ⬜ Planned |
+| 7 | Design ATM System | ✅ [Blueprint](./level_1_core_system_design/atm/atm_system_design.md) |
 | 8 | Design Elevator System | ⬜ Planned |
 | 9 | Design Hotel Booking System | ⬜ Planned |
 
@@ -458,6 +459,35 @@ Visual layout detailing Kiosk/Mobile Ingress, API Gateway, Catalog Search Servic
 Cloud-native layout showing multi-AZ VPC subnets, Route 53, CloudFront/WAF, API Gateway, ALB, ECS Fargate tasks, Lambda CDC workers, Aurora PostgreSQL, ElastiCache Redis, and OpenSearch.
 
 ![AWS Cloud-Native Smart Library Architecture](./level_1_core_system_design/library_management/library_management_aws_architecture.png)
+
+---
+
+---
+
+#### 1.7 Automated Teller Machine (ATM) System Design
+A mission-critical, high-availability ATM Network & Core Banking Switch system design. Features ISO 8583 financial transaction messaging over encrypted TCP/TLS channels, Hardware Security Module (HSM) DUKPT PIN block encryption, Saga-based 2PC transaction coordination (guaranteeing zero double-dispense or double-debit), dynamic cassette note allocation algorithms, and encrypted offline hardware fallback mode.
+
+* **Documentation:** [Automated Teller Machine (ATM) System Design (atm_system_design.md)](./level_1_core_system_design/atm/atm_system_design.md)
+
+#### ATM System Tech Stack Details (with AWS Service Mapping)
+* **AWS Network Load Balancer (NLB):** High-throughput TCP load balancing for 50,000+ persistent ATM terminal connections.
+* **AWS CloudHSM:** FIPS 140-2 Level 3 dedicated hardware security module for DUKPT PIN decryption and PIN Block validation.
+* **Amazon Aurora PostgreSQL:** Multi-AZ relational database guaranteeing ACID financial transaction consistency and optimistic ledger versioning.
+* **Amazon ElastiCache for Redis:** Sub-millisecond in-memory tracking of note counts in individual ATM cassette slots across all terminals.
+* **Amazon ECS Fargate:** Deploys containerized ISO 8583 message switch services and Saga Transaction Orchestrators.
+* **Amazon EventBridge + SQS/SNS:** Asynchronously routes low-cash alerts, hardware jam notifications, and fraud detection streams.
+
+#### ATM System Architecture Diagrams
+
+##### A. High-Level System Architecture & ISO 8583 Message Flow
+Visual layout detailing physical ATM terminals, ISO 8583 Message Switch, AWS CloudHSM, Saga Transaction Coordinator, Aurora PostgreSQL CBS ledger, Redis Cassette Inventory, and EventBridge Alert Workers.
+
+![Automated Teller Machine System Architecture](./level_1_core_system_design/atm/atm_system_architecture.png)
+
+##### B. AWS Cloud-Native ATM Banking Architecture
+Cloud-native layout showing NLB TCP ingress, private VPC compute subnets with CloudHSM and ECS Fargate switches, Aurora PostgreSQL master/replica ledgers, ElastiCache Redis, and EventBridge/SQS/SNS messaging networks.
+
+![AWS Cloud-Native ATM Banking Architecture](./level_1_core_system_design/atm/atm_aws_architecture.png)
 
 ---
 
