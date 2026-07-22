@@ -65,7 +65,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 6 | Design Library Management System | ✅ [Blueprint](./level_1_core_system_design/library_management/library_management_system_design.md) |
 | 7 | Design ATM System | ✅ [Blueprint](./level_1_core_system_design/atm/atm_system_design.md) |
 | 8 | Design Elevator System | ✅ [Blueprint](./level_1_core_system_design/elevator_system/elevator_system_design.md) |
-| 9 | Design Hotel Booking System | ⬜ Planned |
+| 9 | Design Hotel Booking System | ✅ [Blueprint](./level_1_core_system_design/hotel_booking/hotel_booking_system_design.md) |
 
 ---
 
@@ -523,6 +523,41 @@ Visual layout detailing Lobby Touch Kiosks, Edge Microcontrollers & PLC controll
 Cloud-native layout showing AWS IoT Core MQTT ingress, API Gateway, ECS Fargate Destination Dispatch Engine, ElastiCache Redis, Aurora PostgreSQL, Kinesis streaming analytics, and EventBridge alert routing.
 
 ![AWS Cloud-Native Smart Elevator Architecture](./level_1_core_system_design/elevator_system/elevator_aws_architecture.png)
+
+---
+
+---
+
+<a id="19-global-hotel-booking-system-design"></a>
+<a id="19-hotel-booking-system-design"></a>
+#### 1.9 Design Hotel Booking System
+A production-grade, high-scale Global Hotel Booking System for managing 500,000+ hotels and 10,000,000+ rooms worldwide. Features geohash spatial hotel search, 10-minute temporary room hold locks, Optimistic Concurrency Control (OCC) for zero double-booking, Saga-based 2PC payment orchestration, dynamic surge pricing algorithms, and AWS cloud-native edge-failover architecture.
+
+* **Documentation:** [Global Hotel Booking System Design (hotel_booking_system_design.md)](./level_1_core_system_design/hotel_booking/hotel_booking_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (hotel_api_spec.yaml)](./level_1_core_system_design/hotel_booking/hotel_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_1_core_system_design/hotel_booking/mock_server.py) (run using `python3 level_1_core_system_design/hotel_booking/mock_server.py`)
+
+#### Hotel Booking Tech Stack Details (with AWS Service Mapping)
+* **Amazon CloudFront + AWS WAF:** Global CDN edge location caching and Web Application Firewall protection against DDoS surges and scraper bots.
+* **Amazon OpenSearch Service:** Sub-50ms geohash spatial indexing and full-text hotel search over 500,000 hotel profiles.
+* **AWS ECS Fargate:** Deploys containerized Search, Room Inventory Hold Engine, and Saga Payment Coordinator microservices.
+* **Amazon ElastiCache for Redis:** Multi-node Redis cluster managing 10-minute temporary room hold locks (`hold:{reservation_id}`) and availability caches.
+* **Amazon Aurora PostgreSQL:** Multi-AZ relational SQL database storing ACID room inventory records, OCC version tags, and booking ledgers.
+* **Amazon EventBridge + SQS/SNS:** Asynchronous messaging stream for booking confirmation emails, SMS notifications, and partner portal inventory updates.
+
+#### Hotel Booking System Architecture Diagrams
+
+##### A. High-Level System Architecture & Hold Lock Ingestion Flow
+Visual layout detailing Client Apps, API Gateway, Search Service, Room Inventory Hold Engine, Saga Payment Coordinator, OpenSearch Cluster, Redis Hold Cache, and Aurora PostgreSQL Master/Replicas.
+
+![Global Hotel Booking System Architecture](./level_1_core_system_design/hotel_booking/hotel_booking_system_architecture.png)
+
+##### B. AWS Cloud-Native Global Hotel Booking Architecture
+Cloud-native layout showing CloudFront/WAF ingress, API Gateway, ECS Fargate microservices across multi-AZ subnets, OpenSearch, ElastiCache Redis hold locks, Aurora PostgreSQL Master/Replicas, and EventBridge notification workers.
+
+![AWS Cloud-Native Global Hotel Booking Architecture](./level_1_core_system_design/hotel_booking/hotel_booking_aws_architecture.png)
+
+---
 
 ---
 

@@ -1,0 +1,307 @@
+openapi: 3.0.0
+info:
+  title: Global Hotel Booking System API
+  description: API Contracts for Hotel Spatial Search, 10-Minute Room Hold Locks, Booking Confirmations, and Inventory Updates.
+  version: 1.0.0
+servers:
+  - url: https://api.hotelbooking.com/v1
+    description: Production API Server
+  - url: http://localhost:8089/v1
+    description: Local Mock Server
+paths:
+  /hotels/search:
+    get:
+      summary: Search available hotels
+      description: Search hotels by city, geohash spatial coordinates, check-in/check-out dates, and guest capacity.
+      parameters:
+        - name: city
+          in: query
+          required: false
+          schema:
+            type: string
+            example: New York
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            example: 40.7580
+        - name: lon
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            example: -73.9855
+        - name: check_in
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-10-15'
+        - name: check_out
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            example: '2026-10-18'
+        - name: guests
+          in: query
+          schema:
+            type: integer
+            default: 1
+            example: 2
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            example: 10
+      responses:
+        '200':
+          description: Search results matching filters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HotelSearchResponse'
+
+  /reservations/hold:
+    post:
+      summary: Request 10-minute temporary room hold lock
+      description: Places a 10-minute temporary hold lock on the room inventory for the specified dates during checkout.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HoldRequest'
+      responses:
+        '200':
+          description: Room hold lock created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HoldResponse'
+        '409':
+          description: Room type no longer available for selected dates
+
+  /reservations/confirm:
+    post:
+      summary: Confirm reservation & execute payment
+      description: Finalizes booking reservation via Optimistic Concurrency Control (OCC) and processes payment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmRequest'
+      responses:
+        '200':
+          description: Booking confirmed and ticket issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConfirmResponse'
+        '400':
+          description: Hold lock expired or payment failed
+
+  /reservations/{bookingId}:
+    get:
+      summary: Get booking details
+      description: Retrieves confirmed booking details and status.
+      parameters:
+        - name: bookingId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Booking details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BookingDetails'
+        '404':
+          description: Booking not found
+
+components:
+  schemas:
+    HotelSearchResponse:
+      type: object
+      properties:
+        total_results:
+          type: integer
+          example: 42
+        page:
+          type: integer
+          example: 1
+        hotels:
+          type: array
+          items:
+            $ref: '#/components/schemas/HotelSummary'
+
+    HotelSummary:
+      type: object
+      properties:
+        hotel_id:
+          type: string
+          format: uuid
+          example: h_90210-e29b-41d4-a716-446655440000
+        name:
+          type: string
+          example: Hilton Times Square
+        star_rating:
+          type: number
+          format: float
+          example: 4.5
+        city:
+          type: string
+          example: New York
+        available_room_types:
+          type: array
+          items:
+            $ref: '#/components/schemas/AvailableRoomType'
+
+    AvailableRoomType:
+      type: object
+      properties:
+        room_type_id:
+          type: string
+          example: rt_deluxe_king
+        name:
+          type: string
+          example: Deluxe King Room
+        available_rooms:
+          type: integer
+          example: 3
+        price_per_night:
+          type: number
+          format: float
+          example: 289.00
+        total_price:
+          type: number
+          format: float
+          example: 867.00
+
+    HoldRequest:
+      type: object
+      required:
+        - user_id
+        - hotel_id
+        - room_type_id
+        - check_in_date
+        - check_out_date
+        - idempotency_key
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          example: usr_88771122-3344-5566-7788-99aabbccdd00
+        hotel_id:
+          type: string
+          format: uuid
+          example: h_90210-e29b-41d4-a716-446655440000
+        room_type_id:
+          type: string
+          example: rt_deluxe_king
+        check_in_date:
+          type: string
+          format: date
+          example: '2026-10-15'
+        check_out_date:
+          type: string
+          format: date
+          example: '2026-10-18'
+        guest_count:
+          type: integer
+          default: 1
+          example: 2
+        idempotency_key:
+          type: string
+          example: idempotent_key_abc123
+
+    HoldResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: HELD
+        reservation_id:
+          type: string
+          format: uuid
+          example: res_77665544-3322-1100-aacc-bbddee001122
+        hold_expires_at:
+          type: string
+          format: date-time
+          example: '2026-10-15T14:10:00Z'
+        hold_seconds_remaining:
+          type: integer
+          example: 600
+        total_price:
+          type: number
+          format: float
+          example: 867.00
+
+    ConfirmRequest:
+      type: object
+      required:
+        - reservation_id
+        - payment_token
+      properties:
+        reservation_id:
+          type: string
+          format: uuid
+          example: res_77665544-3322-1100-aacc-bbddee001122
+        payment_token:
+          type: string
+          example: tok_stripe_test_998877
+
+    ConfirmResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: CONFIRMED
+        booking_id:
+          type: string
+          format: uuid
+          example: bkg_11223344-5566-7788-9900-aabbccddeeff
+        confirmation_code:
+          type: string
+          example: HILTON-NY-90812
+        confirmed_at:
+          type: string
+          format: date-time
+          example: '2026-10-15T14:05:30Z'
+
+    BookingDetails:
+      type: object
+      properties:
+        booking_id:
+          type: string
+          format: uuid
+          example: bkg_11223344-5566-7788-9900-aabbccddeeff
+        hotel_name:
+          type: string
+          example: Hilton Times Square
+        room_name:
+          type: string
+          example: Deluxe King Room
+        check_in_date:
+          type: string
+          example: '2026-10-15'
+        check_out_date:
+          type: string
+          example: '2026-10-18'
+        status:
+          type: string
+          example: CONFIRMED
+        total_paid:
+          type: number
+          format: float
+          example: 867.00

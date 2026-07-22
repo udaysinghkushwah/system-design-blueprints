@@ -641,6 +641,56 @@ const systemData = {
             }
         }
     },
+    hotel_booking: {
+        title: "Global Hotel Booking System",
+        description: "Geohash spatial search, 10-minute temporary room hold locks, OCC double-booking prevention, and Saga 2PC payment orchestrator.",
+        docLink: "viewer.html?file=level_1_core_system_design/hotel_booking/hotel_booking_system_design.md",
+        techStack: [
+            { service: "Amazon CloudFront + WAF", role: "Global CDN asset caching and Web Application Firewall DDoS protection." },
+            { service: "Amazon API Gateway", role: "HTTPS REST API router, JWT authorization, and rate limiting." },
+            { service: "Amazon OpenSearch Service", role: "Sub-50ms geohash spatial indexing and full-text hotel search." },
+            { service: "AWS ECS Fargate", role: "Deploys containerized Search, Inventory Hold Engine, and Saga Payment microservices." },
+            { service: "Amazon ElastiCache for Redis", role: "Stores 10-minute temporary room hold locks, geohashes, and availability grids." },
+            { service: "Amazon Aurora PostgreSQL", role: "Multi-AZ relational database guaranteeing ACID room inventory updates via Optimistic Concurrency Control." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "CloudFront & API Gateway",
+                category: "CDN & REST Ingress",
+                description: "Ingests global hotel search requests and checkout room hold calls with WAF filtering.",
+                payload: `GET /api/v1/hotels/search?city=NewYork&check_in=2026-10-15&check_out=2026-10-18`,
+                config: `resource "aws_api_gateway_rest_api" "hotel_api" {\n  name        = "hotel-booking-api"\n  description = "Ingress for global hotel booking app"\n}`
+            },
+            "opensearch": {
+                name: "Amazon OpenSearch Cluster",
+                category: "Spatial Hotel Search Engine",
+                description: "Geohash spatial index for sub-50ms radial searches (e.g. hotels within 5km of city center).",
+                payload: `GET /hotels/_search\n{\n  "query": {\n    "geo_bounding_box": {\n      "pin.location": {\n        "top_left": "dr5reg",\n        "bottom_right": "dr5ru7"\n      }\n    }\n  }\n}`,
+                config: `resource "aws_opensearch_domain" "hotel_search_domain" {\n  domain_name    = "hotel-spatial-index"\n  engine_version = "OpenSearch_2.11"\n}`
+            },
+            "proxy": {
+                name: "ECS Fargate (Hold & Saga Engine)",
+                category: "Inventory & Payment Core",
+                description: "Manages 10-minute TTL hold locks, executes Saga 2PC transactions, and enforces OCC versioning.",
+                payload: `EXECUTE SAGA: Issue 10m Hold -> Process Payment -> OCC Commit (version = version + 1)`,
+                config: `resource "aws_ecs_service" "inventory_hold_engine" {\n  name            = "hotel-inventory-hold-service"\n  cluster         = aws_ecs_cluster.hotel_cluster.id\n  task_definition = aws_ecs_task_definition.hold_task.arn\n  desired_count   = 4\n}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Hold Locks",
+                category: "Distributed Hold Cache",
+                description: "Stores 10-minute TTL room hold keys (`hold:{res_id}`) and cached availability grid snapshots.",
+                payload: `SET hold:res_77665544 "user_88771122" EX 600 NX`,
+                config: `resource "aws_elasticache_replication_group" "hold_lock_grid" {\n  replication_group_id = "hotel-hold-lock-grid"\n  node_type            = "cache.t4g.medium"\n  num_cache_clusters   = 2\n}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Durable Room Inventory Grid",
+                description: "Master SQL ledger tracking daily room inventory records, OCC version tags, and confirmed bookings.",
+                payload: `UPDATE room_inventory SET reserved_rooms = reserved_rooms + 1, version = version + 1 WHERE hotel_id = 'h_90210' AND version = 14;`,
+                config: `resource "aws_rds_cluster" "hotel_db" {\n  cluster_identifier = "hotel-inventory-db"\n  engine             = "aurora-postgresql"\n  database_name      = "hotel_reservation"\n}`
+            }
+        }
+    },
     rag_pipeline: {
         title: "RAG Pipeline Engine",
         description: "Unified ingestion and dense/sparse retrieval pipeline with cross-encoder reranking.",
@@ -1797,6 +1847,48 @@ function renderSVG() {
                 <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#4caf50" stroke-width="2" />
                 <text x="90" y="40" font-family="Outfit" font-size="13" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
                 <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Car Registry & Trip Ledger</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "hotel_booking") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC (Hotel Booking Core)</text>
+
+            <path d="M120 250 L 200 250" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 220 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 280 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M520 240 L 520 300" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <path class="data-flow-line" d="M120 250 L 200 250" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 220 L 420 170" stroke="#00e676" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 280 L 420 330" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M520 240 L 520 300" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <g class="interactive-node" id="ingress" transform="translate(40, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">API Gateway</text>
+                <text x="40" y="55" font-family="Outfit" font-size="11" fill="#ff9800" font-weight="700" text-anchor="middle">& CloudFront</text>
+            </g>
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">ECS Fargate</text>
+                <text x="70" y="70" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Hold & Saga Engine</text>
+            </g>
+            <g class="interactive-node" id="opensearch" transform="translate(420, 70)">
+                <rect x="0" y="0" width="180" height="75" rx="10" fill="#111827" stroke="#00e676" stroke-width="2" />
+                <text x="90" y="35" font-family="Outfit" font-size="13" fill="#00e676" font-weight="700" text-anchor="middle">Amazon OpenSearch</text>
+                <text x="90" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Spatial Geohash Index</text>
+            </g>
+            <g class="interactive-node" id="redis" transform="translate(420, 180)">
+                <rect x="0" y="0" width="180" height="75" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="90" y="35" font-family="Outfit" font-size="13" fill="#ab47bc" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="90" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">10-Min Hold Locks</text>
+            </g>
+            <g class="interactive-node" id="db" transform="translate(420, 290)">
+                <rect x="0" y="0" width="180" height="75" rx="10" fill="#111827" stroke="#4caf50" stroke-width="2" />
+                <text x="90" y="35" font-family="Outfit" font-size="13" fill="#4caf50" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+                <text x="90" y="55" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">OCC Room Inventory</text>
             </g>
         </svg>`;
     } else if (currentSystem === "vector_database") {
