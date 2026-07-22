@@ -464,6 +464,8 @@ Cloud-native layout showing multi-AZ VPC subnets, Route 53, CloudFront/WAF, API 
 
 ---
 
+<a id="17-automated-teller-machine-atm-system-design"></a>
+<a id="17-atm-system-design"></a>
 #### 1.7 Automated Teller Machine (ATM) System Design
 A mission-critical, high-availability ATM Network & Core Banking Switch system design. Features ISO 8583 financial transaction messaging over encrypted TCP/TLS channels, Hardware Security Module (HSM) DUKPT PIN block encryption, Saga-based 2PC transaction coordination (guaranteeing zero double-dispense or double-debit), dynamic cassette note allocation algorithms, and encrypted offline hardware fallback mode.
 
