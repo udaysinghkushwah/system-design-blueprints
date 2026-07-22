@@ -1,22 +1,111 @@
-[debug] [2026-07-22T12:30:27.839Z] ----------------------------------------------------------------------
-[debug] [2026-07-22T12:30:27.843Z] Command:       /Users/uday/.nvm/versions/node/v24.18.0/bin/node /Users/uday/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy
-[debug] [2026-07-22T12:30:27.843Z] CLI Version:   15.24.0
-[debug] [2026-07-22T12:30:27.843Z] Platform:      darwin
-[debug] [2026-07-22T12:30:27.843Z] Node Version:  v24.18.0
-[debug] [2026-07-22T12:30:27.843Z] Detected Agent: antigravity
-[debug] [2026-07-22T12:30:27.843Z] Time:          Wed Jul 22 2026 18:00:27 GMT+0530 (India Standard Time)
-[debug] [2026-07-22T12:30:27.844Z] ----------------------------------------------------------------------
+[debug] [2026-07-22T12:34:35.662Z] ----------------------------------------------------------------------
+[debug] [2026-07-22T12:34:35.666Z] Command:       /Users/uday/.nvm/versions/node/v24.18.0/bin/node /Users/uday/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy
+[debug] [2026-07-22T12:34:35.667Z] CLI Version:   15.24.0
+[debug] [2026-07-22T12:34:35.667Z] Platform:      darwin
+[debug] [2026-07-22T12:34:35.667Z] Node Version:  v24.18.0
+[debug] [2026-07-22T12:34:35.667Z] Detected Agent: antigravity
+[debug] [2026-07-22T12:34:35.667Z] Time:          Wed Jul 22 2026 18:04:35 GMT+0530 (India Standard Time)
+[debug] [2026-07-22T12:34:35.667Z] ----------------------------------------------------------------------
 [debug] 
-[debug] [2026-07-22T12:30:33.513Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
-[debug] [2026-07-22T12:30:33.513Z] > authorizing via signed-in user (toudaysinghkushwah@gmail.com)
-[debug] [2026-07-22T12:30:33.514Z] [iam] checking project udaysingh-system-design for permissions ["firebase.projects.get","firebasehosting.sites.update"]
-[debug] [2026-07-22T12:30:33.532Z] Checked if tokens are valid: true, expires at: 1784724870196
-[debug] [2026-07-22T12:30:33.532Z] Checked if tokens are valid: true, expires at: 1784724870196
-[debug] [2026-07-22T12:30:33.533Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions [none]
-[debug] [2026-07-22T12:30:33.533Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions  x-goog-user-project=udaysingh-system-design
-[debug] [2026-07-22T12:30:33.534Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
-[debug] [2026-07-22T12:30:35.353Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions 200
-[debug] [2026-07-22T12:30:35.355Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
-[debug] [2026-07-22T12:30:35.367Z] Checked if tokens are valid: true, expires at: 1784724870196
-[debug] [2026-07-22T12:30:35.368Z] Checked if tokens are valid: true, expires at: 1784724870196
-[debug] [2026-07-22T12:30:35.370Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design [none]
+[debug] [2026-07-22T12:34:38.305Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-22T12:34:38.305Z] > authorizing via signed-in user (toudaysinghkushwah@gmail.com)
+[debug] [2026-07-22T12:34:38.305Z] [iam] checking project udaysingh-system-design for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-07-22T12:34:38.322Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:38.323Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:38.324Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions [none]
+[debug] [2026-07-22T12:34:38.325Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions  x-goog-user-project=udaysingh-system-design
+[debug] [2026-07-22T12:34:38.325Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-22T12:34:40.032Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions 200
+[debug] [2026-07-22T12:34:40.032Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-22T12:34:40.033Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:40.033Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:40.033Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design [none]
+[debug] [2026-07-22T12:34:40.578Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design 200
+[debug] [2026-07-22T12:34:40.578Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design {"projectId":"udaysingh-system-design","projectNumber":"340797237844","displayName":"Uday Singh System Design","name":"projects/udaysingh-system-design","resources":{"hostingSite":"udaysingh-system-design"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_114650db-c19e-472b-99db-1598072a095e"}
+[info] 
+[info] === Deploying to 'udaysingh-system-design'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-07-22T12:34:40.582Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:40.582Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:40.582Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design [none]
+[debug] [2026-07-22T12:34:41.928Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design 200
+[debug] [2026-07-22T12:34:41.928Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design {"name":"projects/udaysingh-system-design/sites/udaysingh-system-design","defaultUrl":"https://udaysingh-system-design.web.app","type":"DEFAULT_SITE"}
+[debug] [2026-07-22T12:34:41.932Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:41.933Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:41.934Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions [none]
+[debug] [2026-07-22T12:34:41.934Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}
+[debug] [2026-07-22T12:34:43.006Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions 200
+[debug] [2026-07-22T12:34:43.006Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions {"name":"projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117","status":"CREATED","config":{},"labels":{"deployment-tool":"cli-firebase"}}
+[info] i  hosting[udaysingh-system-design]: beginning deploy... 
+[info] i  hosting[udaysingh-system-design]: found 71 files in dist 
+[debug] [2026-07-22T12:34:43.044Z] [hosting] uploading with 200 concurrency
+[debug] [2026-07-22T12:34:43.063Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:43.063Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:43.066Z] [hosting] hash cache [ZGlzdA] stored for 71 files
+[debug] [2026-07-22T12:34:43.066Z] [hosting][hash queue][FINAL] {"max":14,"min":0,"avg":0.4547544941112206,"active":0,"complete":71,"success":71,"errored":0,"retried":0,"total":71,"elapsed":19}
+[debug] [2026-07-22T12:34:43.066Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117:populateFiles [none]
+[debug] [2026-07-22T12:34:43.066Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117:populateFiles {"files":{"/viewer.html":"0d0bb9923831dca6f5977d878ad0d1b1a70116f0d6396f56ae84defc287afe37","/styles.css":"e39b940c2ba4259f2b318ac928acfc99518679ac6451cac358c0c96bee39e324","/medium_blog.md":"22b000f531e85653dc792112fd926b0798248d502b08936f444dcc8bdc355483","/index.html":"acb1dd9f3e728fda70b0704b72ad0cf80656f5d16b844324c62139c1ce0e1548","/app.js":"9b08648898f9ccb3f0bd966a1776fb0aaae4446c92b62978d501ab125b5aaa8d","/level_8_distributed_systems/api_gateway/api_gateway_system_design.md":"f4100872d7674a07655a8167b7b51ea053a274046a761d8418dde454f82f8776","/level_8_distributed_systems/api_gateway/api_gateway_system_architecture.png":"78046a2467acea7afa2a96f1959c78fb1d8c16a552d5cd9ea9abb3cec0414b69","/level_8_distributed_systems/api_gateway/api_gateway_aws_architecture.png":"93a0ea58537d0836a6a3da70a0ab8a6455c03ec42c9e87a438960fabac9c11ce","/level_7_ai_systems/vector_database/vector_database_system_design.md":"7b99b7cbf92c04d484bc228b515d1426af995b6bd488aa384121d2e4bcb8e154","/level_7_ai_systems/vector_database/vector_database_system_architecture.png":"1b89cfabe92fac32eb1ca36387ed1db6bed2d61fd73da0bcbb2a74250d93cc36","/level_7_ai_systems/vector_database/vector_database_aws_architecture.png":"69a118095f8eb9b7f1d8a6aab903cb9b0702434b2e38edac6469d9becfdd726f","/level_7_ai_systems/token_streaming/token_streaming_system_design.md":"70a8d78e4aacf604cb7afe2bca95a2b5a313af90a09e11100d1ea82711243dc7","/level_7_ai_systems/token_streaming/token_streaming_system_architecture.png":"ded49b69ae4bd8c90756481401fc08074da3a62f0ea029252751f0497f9b2c78","/level_7_ai_systems/token_streaming/token_streaming_aws_architecture.png":"21388ebf8c7bf8f369b18c34268f499e6db2ba6d94b260c2fea811a89edb271a","/level_7_ai_systems/semantic_search/semantic_search_system_design.md":"b6a0ef83c717d9e2f266d1606ab1bb7c9b087bac1fdbe341a950fcb238801aa7","/level_7_ai_systems/semantic_search/semantic_search_system_architecture.png":"8bbf06c160b353252ba84aad81fd1b3f2487fdf04747e82d93ee675974f64fc4","/level_7_ai_systems/semantic_search/semantic_search_aws_architecture.png":"48f93d7a442634a3e9fda291fa8ac35dae3c0dc06fe847ca916a682f6d2e892f","/level_7_ai_systems/rag_pipeline/rag_query_flow.png":"75364a8b0a3bf87ec029d25e394e326a3c06c14bcb87573fd94bb9e551e43ec6","/level_7_ai_systems/rag_pipeline/rag_pipeline_system_design.md":"03f3955820415fbfd8b19f9e9639e67e542a3e76a494b8929cc9f6d43dd9c3e8","/level_7_ai_systems/rag_pipeline/rag_pipeline_system_architecture.png":"891ca2e7537865b9f681655733d583dfc4519be595caa53c05d426ddec1d6d0c","/level_7_ai_systems/llm_gateway/llm_gateway_system_design.md":"259bd2de6bdbd4615dfc0d9dbb106f9f1596710b326856cd13eef07c9431bc80","/level_7_ai_systems/llm_gateway/llm_gateway_system_architecture.png":"9f80627e4fad69efd40f1d9b9401aff0c1f26734e4ff01419c64a9c101930030","/level_7_ai_systems/llm_gateway/llm_gateway_aws_architecture.png":"4548323c93ba99db9dd9349bb46b78e77aa20ac0ab791eadb3d0b9150b31e221","/level_7_ai_systems/chat_gpt/chatgpt_token_streaming.png":"5ee7eb182da871a3aeccf3d2b80a0ec6a6d18d476ea66fb531867c81eed725e0","/level_7_ai_systems/chat_gpt/chatgpt_system_design.md":"2966659b592b9fe33e65139351f5462f54e29350aef58f238834f32cae52f891","/level_7_ai_systems/chat_gpt/chatgpt_system_architecture_v2.png":"eaf7b1840c27d5087d081f15116460e6eb98f7ecb61ccd189acacc1645c3f8cb","/level_7_ai_systems/chat_gpt/chatgpt_system_architecture.png":"09051d11732369e89127a6023cfe6723bd3c07631ca00bb8aefc2ef76b6bed56","/level_7_ai_systems/chat_gpt/chatgpt_rag_context.png":"57f8ea4be2f3fb3c965e943acd4049d937c6068fb38ca7b772fe7d9ccd7d3518","/level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_design.md":"0167678b79bfc5295ecfd0d860982ad7a2bbf354f00061a5342123833e5a6f39","/level_7_ai_systems/ai_agent_framework/ai_agent_framework_system_architecture.png":"692712aecb2c028d9aa05d2e2521a0cd19442d3c6d7f24d613da3becc400aae2","/level_7_ai_systems/ai_agent_framework/ai_agent_aws_workflow.png":"4e0637d07e1895876e57b4a243f693d4acc04cfbe9d5124476802c27e1095f7a","/level_4_ride_sharing_delivery/food_delivery/mock_server.py":"242a73b5ca902a6eb2f9598fb08f354c8628414e836bf0a0441cfcdab30466c9","/level_4_ride_sharing_delivery/food_delivery/food_delivery_system_design.md":"c04e2eb53c9faeee7c16395651ad9763d05cf67c388e47bf048ed82606485bf6","/level_4_ride_sharing_delivery/food_delivery/food_delivery_system_architecture_v3.png":"88456c259247fe7d3cb82e7c8988065318363795cfc121bbcf9922b33edd5622","/level_4_ride_sharing_delivery/food_delivery/food_delivery_system_architecture_v2.png":"da1c2add7d9bd796e7a870460a7202e0b3b0e552658eff33d7c55d4ba7a92551","/level_4_ride_sharing_delivery/food_delivery/food_delivery_rider_matching_v3.png":"a3a9f663338a296d988a0280efd9b919b0865125ad04410c9c86525fa94f8fd2","/level_4_ride_sharing_delivery/food_delivery/food_delivery_rider_matching_v2.png":"0486716e1e73e2076e299c514449a021b50a3aad7604e1de6e7e8937dd3bbaa8","/level_4_ride_sharing_delivery/food_delivery/food_delivery_live_tracking_v3.png":"19ee7284c55c2ad2ced87360ea765f0045ad72e289a5b0597bd337ae8fc66282","/level_4_ride_sharing_delivery/food_delivery/food_delivery_live_tracking_v2.png":"df57fa452ed4868ccf9ca623ae52aff0d99c5b0322757b192fb9ee105087c71c","/level_4_ride_sharing_delivery/food_delivery/food_delivery_api_spec.yaml":"bfddbfad5b4392733316a146a1ec27906fffb8eba53405fc0b418f222ae39ba8","/level_1_core_system_design/url_shortener/url_shortener_system_design.md":"3b86fce625e14c3b7d2462bec17b24c66f38ca3d7a5cafcf2f630a17b13bc16f","/level_1_core_system_design/url_shortener/url_shortener_system_architecture.png":"2c376802d4bf9a0b3fbfb65a6039ade072d4ec888b0f01d91cf93677eb67876c","/level_1_core_system_design/url_shortener/url_shortener_redirect_flow.png":"21d3df4e5dd60a7c8006c4fb6d8135315b80cf4bfa21ec07fe8e94c662fe9767","/level_1_core_system_design/pastebin/pastebin_system_design.md":"bcd4905bfaaf03e3e0b4264ceeff9885cd101023ba2728cb6077d8d4218899d6","/level_1_core_system_design/pastebin/pastebin_system_architecture.png":"60491d85aaa7046e914fbad061bad1d4f54ad3d3508866f0a2a1ff63333fedbd","/level_1_core_system_design/pastebin/pastebin_read_path.png":"4a4370fd9534b6cb2d405cf9e53df47fc8e87e96fcf6d8c55719e7de0d173030","/level_1_core_system_design/parking_lot/parking_lot_system_design.md":"4d58717aae67e7f8bcbc366982618fd73503c917fbda1323ce633b8c11a5dba9","/level_1_core_system_design/parking_lot/parking_lot_system_architecture.png":"735724a20bc814ecb1d1bc0b3297fba57d5c661113efaa7b679e5b2a6b56f0b7","/level_1_core_system_design/parking_lot/parking_lot_aws_architecture.png":"a543adc6c5480001ddfd4d1e4b1b4f380a0be6421f17e1422df343ad0784cda7","/level_1_core_system_design/library_management/library_management_system_design.md":"f99006cf5930aeb34afbeca9a092878d5a9f30f30045084576df269e58fb50df","/level_1_core_system_design/library_management/library_management_system_architecture.png":"1246ba6951c51ee6159ddbe1b64bb74595231ff7d85ed37ac1673ea7e18d74c7","/level_1_core_system_design/library_management/library_management_aws_architecture.png":"fbcd386f47949a6b04dcb708a0916979eeb6e456385984379d65d4380ddc88ba","/level_1_core_system_design/hotel_booking/mock_server.py":"1569976c6c6ace645388c24255eacd71d4fea46808efeb9b41c74281663a1683","/level_1_core_system_design/hotel_booking/hotel_booking_system_design.md":"91b78cecd55a87a1a59cdc28d3e1376b2fd52e469fb6610b2cc14338d54a1cf4","/level_1_core_system_design/hotel_booking/hotel_booking_system_architecture.png":"0698855bc8ced812e06abcc4dfcb71d4c6a110c1a75cc464c802aa5cdb6c8a30","/level_1_core_system_design/hotel_booking/hotel_booking_aws_architecture.png":"aa71a877365fc7a05a7bf29127f8f776490e346027b92ffc5ab4cac4900c7dac","/level_1_core_system_design/hotel_booking/hotel_api_spec.yaml":"aa216ee1957b2870821142455987e96b35555b69dbe9d530fa8672c7702e4975","/level_1_core_system_design/file_storage/file_storage_system_design.md":"587c2cfda4b0358e47e31970f2b2fbb629c2008fa3234928f95048e6e05792e1","/level_1_core_system_design/file_storage/file_storage_system_architecture.png":"ced2195f855fe3c5bc0401ffd9dbb0e99e6d5ea96c395c4e2956d43a8e8a9cf4","/level_1_core_system_design/elevator_system/mock_server.py":"aaea6f4f820d80a5e647d8196bd35eac790d061221a4d374f1514bf0c051edd5","/level_1_core_system_design/elevator_system/elevator_system_design.md":"107c087b01455766212a19a6f4088b6c3567d653c5f0be5c205708c000097fef","/level_1_core_system_design/elevator_system/elevator_system_architecture.png":"65252a33ca2eb9298e10fec5f1bc26d384f0010bb9825b4110388f2c97b42653","/level_1_core_system_design/elevator_system/elevator_aws_architecture.png":"eeaa1dc814e95b0003666bd6f2c38ed4f2a7c1b05ea68000cd83c1ac74393a70","/level_1_core_system_design/elevator_system/elevator_api_spec.yaml":"700ed4db8cf9a6774ffaade59c285a9ff85cc215c782eb6d9cecb6625dcbb7a8","/level_1_core_system_design/dropbox/dropbox_system_design.md":"ac89d61de9201f33e38afa677a00c62c34b8b64f7ff6a1c9010b12d338a1063d","/level_1_core_system_design/dropbox/dropbox_system_architecture.png":"40d30f93834b4653ab37771871b425b049ddcd64d9d10eb66593e23dd5340d79","/level_1_core_system_design/dropbox/dropbox_aws_architecture.png":"a98e9e0fb1567aa5555b54e4eda6a1f50480519d95918f4fd36a5d91f3291000","/level_1_core_system_design/atm/atm_system_design.md":"acf3b8e69ba86df1f52e3b20b741e935bef6d35c9fbd191a29bb461c2b41ad14","/level_1_core_system_design/atm/atm_system_architecture.png":"2bb4281d67ddb77f48afe83b8dc16b2751c8884a3ea26ff4f3bf180561960458","/level_1_core_system_design/atm/atm_aws_architecture.png":"04af949bbc3e60af78a80e6c2a961980bdd8bd6dad130542153c9e144a33d955","/README.md":"cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd"}}
+[debug] [2026-07-22T12:34:44.028Z] <<< [apiv2][status] POST https://firebasehosting.googleapis.com/v1beta1/projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117:populateFiles 200
+[debug] [2026-07-22T12:34:44.028Z] <<< [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117:populateFiles {"uploadRequiredHashes":["cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd"],"uploadUrl":"https://upload-firebasehosting.googleapis.com/upload/sites/udaysingh-system-design/versions/f36a887d34b69117/files"}
+[debug] [2026-07-22T12:34:44.029Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:44.029Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:44.029Z] >>> [apiv2][query] POST https://upload-firebasehosting.googleapis.com/upload/sites/udaysingh-system-design/versions/f36a887d34b69117/files/cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd [none]
+[debug] [2026-07-22T12:34:44.029Z] >>> [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/udaysingh-system-design/versions/f36a887d34b69117/files/cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd [stream]
+[debug] [2026-07-22T12:34:44.032Z] [hosting][populate queue][FINAL] {"max":967,"min":967,"avg":967,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":970}
+[debug] [2026-07-22T12:34:44.032Z] [hosting] uploads queued: 1
+[info] i  hosting: uploading new files [0/1] (0%) 
+[debug] [2026-07-22T12:34:45.922Z] <<< [apiv2][status] POST https://upload-firebasehosting.googleapis.com/upload/sites/udaysingh-system-design/versions/f36a887d34b69117/files/cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd 200
+[debug] [2026-07-22T12:34:45.922Z] <<< [apiv2][body] POST https://upload-firebasehosting.googleapis.com/upload/sites/udaysingh-system-design/versions/f36a887d34b69117/files/cd466ee9a7d3ad61401a64da3c9db0f57c1e07fc88daedb4a52a7f564cd771cd [stream]
+[debug] [2026-07-22T12:34:45.922Z] [hosting][upload queue][FINAL] {"max":1894,"min":1894,"avg":1894,"active":0,"complete":1,"success":1,"errored":0,"retried":0,"total":1,"elapsed":1894}
+[info] i  hosting: upload complete 
+[info] ✔  hosting[udaysingh-system-design]: file upload complete 
+[debug] [2026-07-22T12:34:45.923Z] [hosting] deploy completed after 2911ms
+[debug] [2026-07-22T12:34:45.923Z] [
+  {
+    "config": {
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**/*.html",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**/*.js",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        },
+        {
+          "source": "**/*.md",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache, no-store, must-revalidate"
+            }
+          ]
+        }
+      ],
+      "site": "udaysingh-system-design"
+    },
+    "version": "projects/340797237844/sites/udaysingh-system-design/versions/f36a887d34b69117"
+  }
+]
+[info] i  hosting[udaysingh-system-design]: finalizing version... 
+[debug] [2026-07-22T12:34:45.927Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:45.928Z] Checked if tokens are valid: true, expires at: 1784724870196
+[debug] [2026-07-22T12:34:45.928Z] >>> [apiv2][query] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions/f36a887d34b69117 updateMask=status%2Cconfig
+[debug] [2026-07-22T12:34:45.928Z] >>> [apiv2][body] PATCH https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions/f36a887d34b69117 {"status":"FINALIZED","config":{"headers":[{"glob":"**/*.html","headers":{"Cache-Control":"no-cache, no-store, must-revalidate"}},{"glob":"**/*.js","headers":{"Cache-Control":"no-cache, no-store, must-revalidate"}},{"glob":"**/*.md","headers":{"Cache-Control":"no-cache, no-store, must-revalidate"}}]}}
