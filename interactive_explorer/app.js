@@ -1503,6 +1503,141 @@ const systemData = {
 }`
             }
         }
+    },
+    distributed_lock: {
+        title: "Distributed Lock Manager",
+        description: "High-concurrency mutual exclusion engine with Redlock quorum consensus, monotonic fencing tokens, and watchdog lease renewal.",
+        docLink: "viewer.html?file=level_8_distributed_systems/distributed_lock/distributed_lock_system_design.md",
+        techStack: [
+            { service: "Amazon Network Load Balancer (NLB)", role: "High-throughput ingress load balancing across Lock microservices." },
+            { service: "Amazon MemoryDB for Redis", role: "Multi-AZ independent master nodes executing atomic SETNX PX and Redlock consensus." },
+            { service: "ECS Fargate (Lock API Service)", role: "Containerized lock API tasks managing watchdog threads and fencing token issuance." },
+            { service: "Amazon DynamoDB (Fencing Guard)", role: "Target database storage validating monotonic fencing tokens to block out-of-order writes." },
+            { service: "Amazon CloudWatch", role: "Monitors lock acquisition latencies, TTL expiry rates, and lock contention frequency." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "AWS Network Load Balancer (NLB)",
+                category: "Networking & Ingress",
+                description: "L4 TCP load balancer forwarding requests directly to containerized lock API workers.",
+                payload: `{"protocol": "TCP", "port": 8088, "action": "FORWARD", "target_group": "tg-lock-service"}`,
+                config: `resource "aws_lb" "lock_nlb" {
+  name               = "distributed-lock-nlb"
+  load_balancer_type = "network"
+  internal           = true
+}`
+            },
+            "proxy": {
+                name: "Lock SDK & Watchdog Coordinator",
+                category: "Lock Coordinator",
+                description: "Executes Redlock quorum algorithm and starts background threads to renew active lock leases.",
+                payload: `{"resource_id": "acc:9901", "client_id": "worker-1", "action": "WATCHDOG_RENEW", "ttl_ms": 10000}`,
+                config: `resource "aws_ecs_service" "lock_service" {
+  name            = "distributed-lock-service"
+  desired_count   = 4
+}`
+            },
+            "redis": {
+                name: "Redlock Quorum Cluster (5 Masters)",
+                category: "Consensus Engine",
+                description: "Independent Redis instances executing atomic SETNX PX commands to grant locks.",
+                payload: `SET lock:acc:9901 val_uuid_104859 NX PX 10000\nACK: 4/5 Nodes`,
+                config: `resource "aws_elasticache_cluster" "lock_masters" {
+  count                = 5
+  cluster_id           = "lock-master-\${count.index}"
+  node_type            = "cache.t4g.medium"
+  num_cache_nodes      = 1
+}`
+            },
+            "db": {
+                name: "Amazon DynamoDB (Fencing Guard)",
+                category: "Protected Storage",
+                description: "Enforces atomic updates checking fencing token > last_seen_token to prevent stale writes.",
+                payload: `UPDATE balance SET amount=1200 WHERE account_id='9901' AND fencing_token > 104858;`,
+                config: `resource "aws_dynamodb_table" "account_balances" {
+  name     = "bank_accounts"
+  hash_key = "account_id"
+  attribute {
+    name = "account_id"
+    type = "S"
+  }
+}`
+            },
+            "s3": {
+                name: "Fencing Token Service",
+                category: "Sequence Generator",
+                description: "Monotonically increasing counter issuing sequential fencing tokens with every lock grant.",
+                payload: `{"resource_id": "acc:9901", "issued_token": 104859, "timestamp": 1784900000}`,
+                config: `resource "aws_dynamodb_table" "token_counter" {
+  name     = "fencing_token_sequence"
+  hash_key = "resource_id"
+}`
+            }
+        }
+    },
+    distributed_queue: {
+        title: "Distributed Message Queue",
+        description: "High-throughput, partitioned streaming message platform with Write-Ahead Logs, consumer groups, offset commits, and DLQ escalation.",
+        docLink: "viewer.html?file=level_8_distributed_systems/distributed_queue/distributed_queue_system_design.md",
+        techStack: [
+            { service: "Amazon Network Load Balancer (NLB)", role: "High-throughput L4 TCP traffic distribution across broker endpoints." },
+            { service: "Amazon MSK (Managed Streaming for Kafka)", role: "Multi-AZ brokers storing partition WAL logs on high-speed EBS volumes." },
+            { service: "ECS Fargate (Consumer Microservices)", role: "Auto-scaled container workers processing topic messages in consumer groups." },
+            { service: "Amazon DynamoDB (Offset & DLQ Registry)", role: "Stores committed consumer group offsets and Dead Letter Queue poison pill records." },
+            { service: "Amazon CloudWatch", role: "Monitors topic lag, bytes in/out, and partition rebalance events." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "AWS Network Load Balancer (NLB)",
+                category: "Ingress Router",
+                description: "L4 TCP load balancer routing producer publish requests directly to active partition leaders.",
+                payload: `{"protocol": "TCP", "port": 9092, "topic": "orders", "action": "ROUTE_PARTITION_LEADER"}`,
+                config: `resource "aws_lb" "queue_nlb" {
+  name               = "queue-cluster-nlb"
+  load_balancer_type = "network"
+}`
+            },
+            "proxy": {
+                name: "Partition Commit Log (WAL Engine)",
+                category: "Message Storage Engine",
+                description: "Appends message bytes to disk segment files (.log) and sparse offset index files (.index).",
+                payload: `{"topic": "orders", "partition": 1, "offset": 1048592, "key": "user_101", "payload_bytes": 1024}`,
+                config: `resource "aws_msk_cluster" "queue_brokers" {
+  cluster_name           = "distributed-queue-msk"
+  kafka_version          = "3.5.1"
+  number_of_broker_nodes = 6
+}`
+            },
+            "redis": {
+                name: "Consumer Group Coordinator",
+                category: "Group Management",
+                description: "Manages consumer heartbeats and executes partition rebalancing protocols when workers join or leave.",
+                payload: `{"consumer_group": "order-processors", "active_consumers": 4, "assigned_partitions": [0, 1, 2, 3]}`,
+                config: `resource "aws_ecs_service" "consumer_workers" {
+  name            = "order-processor-consumers"
+  desired_count   = 4
+}`
+            },
+            "db": {
+                name: "Amazon DynamoDB (Offset Registry)",
+                category: "Offset Storage",
+                description: "Stores durable sequence offsets for consumer groups to guarantee state resumption after restarts.",
+                payload: `{"group_id": "order-processors", "topic": "orders", "partition": 1, "committed_offset": 1048592}`,
+                config: `resource "aws_dynamodb_table" "offsets" {
+  name     = "consumer_group_offsets"
+  hash_key = "group_id"
+}`
+            },
+            "s3": {
+                name: "Dead Letter Queue (DLQ Engine)",
+                category: "Poison Message Store",
+                description: "Stores unprocessable messages exceeding max retry limits for offline inspection.",
+                payload: `{"dlq_id": 8812, "original_topic": "orders", "retry_count": 5, "reason": "DeserializationError"}`,
+                config: `resource "aws_sqs_queue" "dead_letter_queue" {
+  name = "orders-dlq-queue"
+}`
+            }
+        }
     }
 };
 

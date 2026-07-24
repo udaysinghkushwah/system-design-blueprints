@@ -1,0 +1,42 @@
+[debug] [2026-07-24T13:52:58.712Z] ----------------------------------------------------------------------
+[debug] [2026-07-24T13:52:58.716Z] Command:       /Users/uday/.nvm/versions/node/v24.18.0/bin/node /Users/uday/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase deploy
+[debug] [2026-07-24T13:52:58.717Z] CLI Version:   15.24.0
+[debug] [2026-07-24T13:52:58.717Z] Platform:      darwin
+[debug] [2026-07-24T13:52:58.717Z] Node Version:  v24.18.0
+[debug] [2026-07-24T13:52:58.717Z] Detected Agent: antigravity
+[debug] [2026-07-24T13:52:58.717Z] Time:          Fri Jul 24 2026 19:22:58 GMT+0530 (India Standard Time)
+[debug] [2026-07-24T13:52:58.718Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-07-24T13:53:03.945Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-07-24T13:53:03.946Z] > authorizing via signed-in user (toudaysinghkushwah@gmail.com)
+[debug] [2026-07-24T13:53:03.947Z] [iam] checking project udaysingh-system-design for permissions ["firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-07-24T13:53:04.025Z] Checked if tokens are valid: false, expires at: 1784900524640
+[debug] [2026-07-24T13:53:04.025Z] Checked if tokens are valid: false, expires at: 1784900524640
+[debug] [2026-07-24T13:53:04.025Z] > refreshing access token with scopes: []
+[debug] [2026-07-24T13:53:04.046Z] >>> [apiv2][query] POST https://www.googleapis.com/oauth2/v3/token [none]
+[debug] [2026-07-24T13:53:04.046Z] >>> [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-24T13:53:04.388Z] <<< [apiv2][status] POST https://www.googleapis.com/oauth2/v3/token 200
+[debug] [2026-07-24T13:53:04.388Z] <<< [apiv2][body] POST https://www.googleapis.com/oauth2/v3/token [omitted]
+[debug] [2026-07-24T13:53:04.427Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions [none]
+[debug] [2026-07-24T13:53:04.433Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions  x-goog-user-project=udaysingh-system-design
+[debug] [2026-07-24T13:53:04.434Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-24T13:53:06.019Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions 200
+[debug] [2026-07-24T13:53:06.019Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/udaysingh-system-design:testIamPermissions {"permissions":["firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-07-24T13:53:06.019Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:06.020Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:06.020Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design [none]
+[debug] [2026-07-24T13:53:06.823Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design 200
+[debug] [2026-07-24T13:53:06.823Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/udaysingh-system-design {"projectId":"udaysingh-system-design","projectNumber":"340797237844","displayName":"Uday Singh System Design","name":"projects/udaysingh-system-design","resources":{"hostingSite":"udaysingh-system-design"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_114650db-c19e-472b-99db-1598072a095e"}
+[info] 
+[info] === Deploying to 'udaysingh-system-design'...
+[info] 
+[info] i  deploying hosting 
+[debug] [2026-07-24T13:53:06.826Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:06.827Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:06.827Z] >>> [apiv2][query] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design [none]
+[debug] [2026-07-24T13:53:08.299Z] <<< [apiv2][status] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design 200
+[debug] [2026-07-24T13:53:08.299Z] <<< [apiv2][body] GET https://firebasehosting.googleapis.com/v1beta1/projects/udaysingh-system-design/sites/udaysingh-system-design {"name":"projects/udaysingh-system-design/sites/udaysingh-system-design","defaultUrl":"https://udaysingh-system-design.web.app","type":"DEFAULT_SITE"}
+[debug] [2026-07-24T13:53:08.309Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:08.310Z] Checked if tokens are valid: true, expires at: 1784904783389
+[debug] [2026-07-24T13:53:08.313Z] >>> [apiv2][query] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions [none]
+[debug] [2026-07-24T13:53:08.315Z] >>> [apiv2][body] POST https://firebasehosting.googleapis.com/v1beta1/projects/-/sites/udaysingh-system-design/versions {"status":"CREATED","labels":{"deployment-tool":"cli-firebase"}}

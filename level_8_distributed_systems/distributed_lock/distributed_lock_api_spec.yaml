@@ -1,0 +1,257 @@
+openapi: 3.0.3
+info:
+  title: Distributed Lock Manager API
+  description: High-concurrency, fault-tolerant OpenAPI specification for distributed mutual exclusion locks, fencing token issuance, and lease extensions.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8088
+    description: Local Mock Lock Server
+  - url: https://lock-service.internal.company.com
+    description: Production Lock Manager Ingress NLB
+
+paths:
+  /v1/locks/acquire:
+    post:
+      summary: Acquire Distributed Lock
+      description: Atomically requests exclusive lock on resource across Redlock quorum nodes and returns monotonic fencing token.
+      operationId: acquireLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcquireLockRequest'
+      responses:
+        '200':
+          description: Lock Granted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcquireLockResponse'
+        '409':
+          description: Lock Acquisition Failed (Resource Locked)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockConflictResponse'
+
+  /v1/locks/release:
+    post:
+      summary: Release Distributed Lock
+      description: Atomically releases lock using Lua script verifying owner UUID match.
+      operationId: releaseLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReleaseLockRequest'
+      responses:
+        '200':
+          description: Lock Released
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  released:
+                    type: boolean
+                    example: true
+                  resource_id:
+                    type: string
+                    example: "account:transfer:99201"
+                  message:
+                    type: string
+                    example: "Lock atomic release executed across quorum"
+
+  /v1/locks/renew:
+    post:
+      summary: Renew Lock Lease TTL
+      description: Extends expiration timestamp of active lock for ongoing critical section.
+      operationId: renewLock
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - resource_id
+                - client_id
+                - extend_ms
+              properties:
+                resource_id:
+                  type: string
+                  example: "account:transfer:99201"
+                client_id:
+                  type: string
+                  example: "worker-node-az1-42"
+                extend_ms:
+                  type: integer
+                  example: 10000
+      responses:
+        '200':
+          description: Lease Extended
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  renewed:
+                    type: boolean
+                    example: true
+                  resource_id:
+                    type: string
+                    example: "account:transfer:99201"
+                  new_ttl_ms:
+                    type: integer
+                    example: 10000
+
+  /v1/locks/{resource_id}:
+    get:
+      summary: Inspect Lock Status
+      description: Retrieve owner, TTL remaining, and fencing token details.
+      operationId: getLockStatus
+      parameters:
+        - name: resource_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "account:transfer:99201"
+      responses:
+        '200':
+          description: Lock Details Found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockDetails'
+        '404':
+          description: Resource Unlocked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  is_locked:
+                    type: boolean
+                    example: false
+                  resource_id:
+                    type: string
+                    example: "account:transfer:99201"
+
+  /health:
+    get:
+      summary: Health Check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Health Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "UP"
+                  quorum_nodes_online:
+                    type: integer
+                    example: 5
+
+components:
+  schemas:
+    AcquireLockRequest:
+      type: object
+      required:
+        - resource_id
+        - client_id
+      properties:
+        resource_id:
+          type: string
+          example: "account:transfer:99201"
+        client_id:
+          type: string
+          example: "worker-node-az1-42"
+        ttl_ms:
+          type: integer
+          default: 10000
+          example: 10000
+        enable_watchdog:
+          type: boolean
+          default: true
+          example: true
+
+    AcquireLockResponse:
+      type: object
+      properties:
+        acquired:
+          type: boolean
+          example: true
+        resource_id:
+          type: string
+          example: "account:transfer:99201"
+        client_id:
+          type: string
+          example: "worker-node-az1-42"
+        fencing_token:
+          type: integer
+          example: 104859
+        validity_time_ms:
+          type: integer
+          example: 9840
+        quorum_nodes_ack:
+          type: integer
+          example: 4
+
+    LockConflictResponse:
+      type: object
+      properties:
+        acquired:
+          type: boolean
+          example: false
+        resource_id:
+          type: string
+          example: "account:transfer:99201"
+        message:
+          type: string
+          example: "Resource locked by client worker-node-az2-08"
+        retry_after_ms:
+          type: integer
+          example: 250
+
+    ReleaseLockRequest:
+      type: object
+      required:
+        - resource_id
+        - client_id
+        - fencing_token
+      properties:
+        resource_id:
+          type: string
+          example: "account:transfer:99201"
+        client_id:
+          type: string
+          example: "worker-node-az1-42"
+        fencing_token:
+          type: integer
+          example: 104859
+
+    LockDetails:
+      type: object
+      properties:
+        is_locked:
+          type: boolean
+          example: true
+        resource_id:
+          type: string
+          example: "account:transfer:99201"
+        owner_client_id:
+          type: string
+          example: "worker-node-az1-42"
+        fencing_token:
+          type: integer
+          example: 104859
+        ttl_remaining_ms:
+          type: integer
+          example: 7420

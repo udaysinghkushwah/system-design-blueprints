@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 19 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 21 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -45,7 +45,9 @@ We have built a premium, interactive web dashboard to explore all 19 completed d
     - [⚡ Token Streaming System Design](#77-token-streaming-system-design)
   - **Level 8 – Distributed Systems**
     - [⚡ Distributed Cache System Design](#81-distributed-cache-system-design)
-    - [🌐 API Gateway System Design](#82-api-gateway-system-design)
+    - [🔒 Distributed Lock System Design](#82-distributed-lock-system-design)
+    - [📥 Distributed Queue System Design](#83-distributed-queue-system-design)
+    - [🌐 API Gateway System Design](#84-api-gateway-system-design)
 - [☕ Support](#-support)
 
 ## 🗺️ System Design Roadmap
@@ -160,8 +162,8 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | # | Topic | Status |
 |---|-------|--------|
 | 1 | Distributed Cache | ✅ [Blueprint](./level_8_distributed_systems/distributed_cache/distributed_cache_system_design.md) |
-| 2 | Distributed Lock | ⬜ Planned |
-| 3 | Distributed Queue | ⬜ Planned |
+| 2 | Distributed Lock | ✅ [Blueprint](./level_8_distributed_systems/distributed_lock/distributed_lock_system_design.md) |
+| 3 | Distributed Queue | ✅ [Blueprint](./level_8_distributed_systems/distributed_queue/distributed_queue_system_design.md) |
 | 4 | API Gateway | ✅ [Blueprint](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md) |
 | 5 | Service Discovery | ⬜ Planned |
 | 6 | Rate Limiter | ⬜ Planned |
@@ -860,7 +862,59 @@ Cloud-native layout detailing Multi-AZ private subnets, NLB ingress, EC2 cache p
 
 ![AWS Cloud-Native Distributed Cache Architecture](./level_8_distributed_systems/distributed_cache/distributed_cache_aws_architecture.png)
 
-#### 8.2 API Gateway System Design
+### 8.2 Distributed Lock System Design
+
+A production-grade, fault-tolerant Distributed Lock manager ensuring mutual exclusion across distributed nodes. Features multi-master Redlock quorum consensus, monotonic fencing tokens to protect against out-of-order storage updates, ZooKeeper Ephemeral Sequential Nodes, and automatic watchdog lease renewal threads.
+
+* **Documentation:** [Distributed Lock Blueprint](./level_8_distributed_systems/distributed_lock/distributed_lock_system_design.md)
+* **OpenAPI 3.0 Contract:** [API Spec](./level_8_distributed_systems/distributed_lock/distributed_lock_api_spec.yaml)
+* **Runnable Mock Server:** `python3 level_8_distributed_systems/distributed_lock/mock_server.py` (Port 8088)
+
+#### Core Technologies & AWS Services Used
+* **Amazon Network Load Balancer (NLB):** High-throughput L4 TCP load balancing across Lock API container tasks.
+* **Amazon MemoryDB for Redis:** Multi-AZ independent master nodes executing atomic SETNX PX commands.
+* **AWS ECS Fargate:** Containerized microservices managing watchdog lease renewal threads and fencing token issuance.
+* **Amazon DynamoDB:** Protected storage table enforcing fencing token validation (`token > last_seen_token`).
+
+#### Distributed Lock Architecture Diagrams
+
+##### A. High-Level System Architecture & Quorum Consensus
+Visual diagram illustrating Smart Lock SDK with Watchdog, Redlock 5-Master Quorum, Monotonic Fencing Tokens, and ZooKeeper fallback.
+
+![Distributed Lock System Architecture](./level_8_distributed_systems/distributed_lock/distributed_lock_system_architecture.png)
+
+##### B. AWS Cloud-Native Distributed Lock Infrastructure
+Cloud-native architecture detailing Multi-AZ private subnets, NLB, MemoryDB Redis instances, ECS Fargate tasks, and DynamoDB token guards.
+
+![AWS Cloud-Native Distributed Lock Architecture](./level_8_distributed_systems/distributed_lock/distributed_lock_aws_architecture.png)
+
+### 8.3 Distributed Queue System Design
+
+A production-grade, partitioned streaming message platform capable of handling millions of messages per second with sub-10ms latencies. Features append-only Write-Ahead Logs (WAL) with sparse indexing, consumer group partition rebalancing, offset commit tracking, visibility timeouts, and Dead Letter Queue (DLQ) escalation.
+
+* **Documentation:** [Distributed Queue Blueprint](./level_8_distributed_systems/distributed_queue/distributed_queue_system_design.md)
+* **OpenAPI 3.0 Contract:** [API Spec](./level_8_distributed_systems/distributed_queue/distributed_queue_api_spec.yaml)
+* **Runnable Mock Server:** `python3 level_8_distributed_systems/distributed_queue/mock_server.py` (Port 8089)
+
+#### Core Technologies & AWS Services Used
+* **Amazon Network Load Balancer (NLB):** High-throughput L4 TCP traffic distribution across broker endpoints.
+* **Amazon MSK (Managed Streaming for Kafka):** Multi-AZ brokers storing partition WAL logs on high-speed EBS volumes.
+* **AWS ECS Fargate Tasks:** Auto-scaled container workers processing topic messages in consumer groups.
+* **Amazon DynamoDB:** Durable storage for consumer offset commits and Dead Letter Queue poison pill records.
+
+#### Distributed Queue Architecture Diagrams
+
+##### A. High-Level System Architecture & Partition Commit Logs
+Visual layout showing Producer publish flows, Broker WAL log segments, Consumer Group partition assignment, and DLQ escalation.
+
+![Distributed Queue System Architecture](./level_8_distributed_systems/distributed_queue/distributed_queue_system_architecture.png)
+
+##### B. AWS Cloud-Native Distributed Queue Infrastructure
+Cloud-native layout detailing Multi-AZ MSK Kafka brokers, EBS storage, ECS Fargate consumer tasks, and DynamoDB offset registries.
+
+![AWS Cloud-Native Distributed Queue Architecture](./level_8_distributed_systems/distributed_queue/distributed_queue_aws_architecture.png)
+
+#### 8.4 API Gateway System Design
 
 ##### A. High-Level System Architecture & Filter Chain Pipeline
 Visual layout illustrating the Linux epoll connection events listener, CPU core worker loops, and sequential filter pipeline checks.

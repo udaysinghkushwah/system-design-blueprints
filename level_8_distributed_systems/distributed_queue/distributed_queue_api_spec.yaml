@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Distributed Message Queue API
+  description: High-throughput, partitioned OpenAPI contract for publishing, polling, offset committing, and Dead Letter Queue management.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8089
+    description: Local Mock Queue Broker
+  - url: https://queue-ingress.internal.company.com
+    description: Production Queue Cluster Ingress NLB
+
+paths:
+  /v1/topics/{topic}/publish:
+    post:
+      summary: Publish Message to Topic
+      description: Appends message to partitioned Write-Ahead Log (WAL) with optional key-based hash routing.
+      operationId: publishMessage
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "orders"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishMessageRequest'
+      responses:
+        '201':
+          description: Message Published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PublishMessageResponse'
+
+  /v1/topics/{topic}/consume:
+    post:
+      summary: Poll Messages (Consumer Group)
+      description: Polls batch of messages for assigned partitions within a consumer group.
+      operationId: consumeMessages
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "orders"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsumeMessagesRequest'
+      responses:
+        '200':
+          description: Batch Messages Returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumeMessagesResponse'
+
+  /v1/topics/{topic}/offsets/commit:
+    post:
+      summary: Commit Consumer Group Offsets
+      description: Atomically updates processing sequence offset per partition for a consumer group.
+      operationId: commitOffsets
+      parameters:
+        - name: topic
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "orders"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommitOffsetRequest'
+      responses:
+        '200':
+          description: Offsets Committed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  committed:
+                    type: integer
+                    example: 1
+
+  /health:
+    get:
+      summary: Healthcheck
+      operationId: getHealth
+      responses:
+        '200':
+          description: Health Status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "UP"
+                  broker_role:
+                    type: string
+                    example: "LEADER"
+                  active_topics:
+                    type: integer
+                    example: 12
+
+components:
+  schemas:
+    PublishMessageRequest:
+      type: object
+      required:
+        - payload
+      properties:
+        key:
+          type: string
+          example: "order_user_9981"
+        payload:
+          type: object
+          example:
+            order_id: "ORD-88201"
+            amount: 249.99
+            user_id: "9981"
+        delay_seconds:
+          type: integer
+          default: 0
+          example: 0
+
+    PublishMessageResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "PUBLISHED"
+        topic:
+          type: string
+          example: "orders"
+        partition:
+          type: integer
+          example: 3
+        offset:
+          type: integer
+          example: 1048592
+        timestamp_ms:
+          type: integer
+          example: 1784898000120
+
+    ConsumeMessagesRequest:
+      type: object
+      required:
+        - consumer_group
+        - consumer_id
+      properties:
+        consumer_group:
+          type: string
+          example: "order-processors"
+        consumer_id:
+          type: string
+          example: "consumer-node-01"
+        max_messages:
+          type: integer
+          default: 10
+          example: 10
+        visibility_timeout_sec:
+          type: integer
+          default: 30
+          example: 30
+
+    ConsumeMessagesResponse:
+      type: object
+      properties:
+        topic:
+          type: string
+          example: "orders"
+        messages_count:
+          type: integer
+          example: 1
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              partition:
+                type: integer
+                example: 3
+              offset:
+                type: integer
+                example: 1048592
+              key:
+                type: string
+                example: "order_user_9981"
+              payload:
+                type: object
+                example:
+                  order_id: "ORD-88201"
+                  amount: 249.99
+              receipt_handle:
+                type: string
+                example: "handle_p3_off1048592_attempt1"
+
+    CommitOffsetRequest:
+      type: object
+      required:
+        - consumer_group
+        - offsets
+      properties:
+        consumer_group:
+          type: string
+          example: "order-processors"
+        offsets:
+          type: array
+          items:
+            type: object
+            properties:
+              partition:
+                type: integer
+                example: 3
+              committed_offset:
+                type: integer
+                example: 1048592
