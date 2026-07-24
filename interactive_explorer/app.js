@@ -1436,6 +1436,73 @@ const systemData = {
 }`
             }
         }
+    },
+    distributed_cache: {
+        title: "Distributed Cache Cluster",
+        description: "High-throughput, low-latency key-value memory engine with consistent hashing, LRU eviction, and write-behind persistence.",
+        docLink: "viewer.html?file=level_8_distributed_systems/distributed_cache/distributed_cache_system_design.md",
+        techStack: [
+            { service: "Amazon Network Load Balancer (NLB)", role: "High-throughput TCP ingress load balancing across cache partitions." },
+            { service: "Amazon EC2 / ElastiCache Nodes", role: "Memory-optimized Graviton nodes hosting primary and replica cache shards." },
+            { service: "ECS Fargate (Consul Coordinator)", role: "Containerized cluster coordinator managing consistent hash ring topology and node heartbeats." },
+            { service: "ECS Fargate (Write-Behind Workers)", role: "Asynchronously flushes memory ring-buffer mutations to persistent databases in micro-batches." },
+            { service: "Amazon Aurora PostgreSQL", role: "Durable primary relational database store." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "AWS Network Load Balancer (NLB)",
+                category: "Networking & Routing",
+                description: "L4 TCP load balancer forwarding requests directly to target hash ring partition nodes.",
+                payload: `{"protocol": "TCP", "port": 6379, "action": "FORWARD", "target_group": "tg-partition-a"}`,
+                config: `resource "aws_lb" "cache_nlb" {
+  name               = "cache-cluster-nlb"
+  load_balancer_type = "network"
+  internal           = true
+}`
+            },
+            "proxy": {
+                name: "Smart Client / Consul Coordinator",
+                category: "Cluster Routing",
+                description: "Computes key hash on virtual ring topology to route requests directly to assigned physical nodes.",
+                payload: `{"key": "user:profile:98214", "hash_val": 28459102, "assigned_node": "node-p1-a1"}`,
+                config: `resource "aws_ecs_service" "consul_coordinator" {
+  name            = "consul-cluster-coordinator"
+  desired_count   = 3
+}`
+            },
+            "redis": {
+                name: "In-Memory LRU Node (Primary)",
+                category: "Memory Storage",
+                description: "Thread-safe hash table and doubly linked list executing O(1) reads, writes, and LRU evictions.",
+                payload: `{"status": "HIT", "key": "user:profile:98214", "ttl_remaining_ms": 284500, "node_id": "node-p1-a1"}`,
+                config: `resource "aws_instance" "cache_primary" {
+  ami           = "ami-0abcdef1234567890"
+  instance_type = "r6g.xlarge"
+  tags          = { Role = "Primary-Partition-A" }
+}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL",
+                category: "Persistent Database",
+                description: "Authoritative datastore receiving async write-behind updates from ring buffer worker tasks.",
+                payload: `UPDATE users SET name = 'Sarah Connor' WHERE user_id = '98214';`,
+                config: `resource "aws_rds_cluster" "persistent_db" {
+  cluster_identifier = "cache-persistent-aurora"
+  engine             = "aurora-postgresql"
+  engine_mode        = "provisioned"
+}`
+            },
+            "s3": {
+                name: "Write-Behind Async Worker",
+                category: "Persistence Engine",
+                description: "Flushes memory ring buffer mutation events into Aurora PostgreSQL in bulk micro-batches.",
+                payload: `{"batch_size": 150, "flush_interval_ms": 100, "operation": "WRITE_BEHIND"}`,
+                config: `resource "aws_ecs_service" "persistence_worker" {
+  name          = "write-behind-worker"
+  desired_count = 4
+}`
+            }
+        }
     }
 };
 

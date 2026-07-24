@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 18 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 19 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -44,7 +44,8 @@ We have built a premium, interactive web dashboard to explore all 18 completed d
     - [🔍 Semantic Search System Design](#76-semantic-search-system-design)
     - [⚡ Token Streaming System Design](#77-token-streaming-system-design)
   - **Level 8 – Distributed Systems**
-    - [🌐 API Gateway System Design](#81-api-gateway-system-design)
+    - [⚡ Distributed Cache System Design](#81-distributed-cache-system-design)
+    - [🌐 API Gateway System Design](#82-api-gateway-system-design)
 - [☕ Support](#-support)
 
 ## 🗺️ System Design Roadmap
@@ -158,7 +159,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 
 | # | Topic | Status |
 |---|-------|--------|
-| 1 | Distributed Cache | ⬜ Planned |
+| 1 | Distributed Cache | ✅ [Blueprint](./level_8_distributed_systems/distributed_cache/distributed_cache_system_design.md) |
 | 2 | Distributed Lock | ⬜ Planned |
 | 3 | Distributed Queue | ⬜ Planned |
 | 4 | API Gateway | ✅ [Blueprint](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md) |
@@ -832,7 +833,34 @@ A high-performance event-driven edge routing gateway engineered to handle 100,00
 * **Amazon ElastiCache for Redis:** Records sliding-window sorted sets for precise rate-limit metrics.
 * **Amazon DynamoDB:** Stores active configuration rules, dynamic routes, and tenant security maps.
 
-#### API Gateway Architecture Diagrams
+### 8.1 Distributed Cache System Design
+
+A production-grade, fault-tolerant, high-throughput Distributed Cache system capable of handling millions of requests per second with sub-millisecond p99 latencies. Features consistent hashing with virtual nodes, thread-safe LRU/LFU eviction, TTL expiration, write-behind async ring buffers, and automatic master-replica failover.
+
+* **Documentation:** [Distributed Cache Blueprint](./level_8_distributed_systems/distributed_cache/distributed_cache_system_design.md)
+* **OpenAPI 3.0 Contract:** [API Spec](./level_8_distributed_systems/distributed_cache/distributed_cache_api_spec.yaml)
+* **Runnable Mock Server:** `python3 level_8_distributed_systems/distributed_cache/mock_server.py` (Port 8087)
+
+#### Core Technologies & AWS Services Used
+* **Amazon Network Load Balancer (NLB):** High-throughput L4 TCP load balancing across cache partition targets.
+* **Amazon EC2 / ElastiCache Nodes:** Memory-optimized Graviton2 nodes hosting primary and read replica cache partitions.
+* **HashiCorp Consul on ECS Fargate:** Containerized consensus coordinator managing node membership, consistent hash ring topology, and heartbeats.
+* **Async Write-Behind Worker (ECS):** Processes in-memory ring-buffer mutation queues to flush updates to Aurora PostgreSQL in bulk micro-batches.
+* **Amazon Aurora PostgreSQL:** Durable primary relational database for persistent storage.
+
+#### Distributed Cache Architecture Diagrams
+
+##### A. High-Level System Architecture & Consistent Hash Ring
+Visual diagram showing Smart Client routing, Consistent Hashing virtual nodes, LRU memory engines, Write-Behind ring buffers, and database persistence.
+
+![Distributed Cache System Architecture](./level_8_distributed_systems/distributed_cache/distributed_cache_system_architecture.png)
+
+##### B. AWS Cloud-Native Distributed Cache Infrastructure
+Cloud-native layout detailing Multi-AZ private subnets, NLB ingress, EC2 cache primary/replica pairs, ECS Consul coordinator, and Aurora PostgreSQL database.
+
+![AWS Cloud-Native Distributed Cache Architecture](./level_8_distributed_systems/distributed_cache/distributed_cache_aws_architecture.png)
+
+#### 8.2 API Gateway System Design
 
 ##### A. High-Level System Architecture & Filter Chain Pipeline
 Visual layout illustrating the Linux epoll connection events listener, CPU core worker loops, and sequential filter pipeline checks.
@@ -858,4 +886,4 @@ If you find these system design blueprints helpful, support my work by buying me
 
 ---
 
-*Updated on 2026-07-22*
+*Updated on 2026-07-24*

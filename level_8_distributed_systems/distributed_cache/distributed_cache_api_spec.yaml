@@ -1,0 +1,279 @@
+openapi: 3.0.3
+info:
+  title: Distributed Cache System API
+  description: High-performance, fault-tolerant OpenAPI contract for low-latency key-value operations, batch operations, cluster health, and node topology management.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8087
+    description: Local Mock Server
+  - url: https://api.cache.internal.company.com
+    description: Production Cluster Ingress NLB
+
+paths:
+  /v1/cache/{key}:
+    get:
+      summary: Retrieve Cached Value
+      description: Fetches entry by key with optional X-Cache-Strategy headers.
+      operationId: getCacheKey
+      parameters:
+        - name: key
+          in: path
+          required: true
+          description: Unique string key name
+          schema:
+            type: string
+            example: "user:profile:98214"
+        - name: X-Cache-Strategy
+          in: header
+          required: false
+          schema:
+            type: string
+            enum: [CACHE_ASIDE, READ_THROUGH]
+            default: CACHE_ASIDE
+      responses:
+        '200':
+          description: Cache Hit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheHitResponse'
+        '404':
+          description: Cache Miss
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CacheMissResponse'
+    delete:
+      summary: Invalidate Key
+      description: Explicitly deletes a key from the cache cluster.
+      operationId: deleteCacheKey
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Key deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  key:
+                    type: string
+                    example: "user:profile:98214"
+                  message:
+                    type: string
+                    example: "Key invalidated across primary and replicas"
+
+  /v1/cache:
+    post:
+      summary: Put Key-Value Entry
+      description: Insert or update key-value pair with TTL and write strategy.
+      operationId: putCacheKey
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PutCacheRequest'
+      responses:
+        '201':
+          description: Entry Created / Updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PutCacheResponse'
+
+  /v1/cache/batch-get:
+    post:
+      summary: Batch Get Keys (MGET)
+      description: Retrieve multiple keys across consistent hash ring partitions in parallel.
+      operationId: batchGetKeys
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - keys
+              properties:
+                keys:
+                  type: array
+                  items:
+                    type: string
+                  example: ["user:profile:101", "user:profile:102", "session:tok_99"]
+      responses:
+        '200':
+          description: Batch Retrieval Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchGetCacheResponse'
+
+  /v1/cluster/nodes:
+    get:
+      summary: Get Cluster Node Topology
+      description: Inspect health, partition assignment, and memory usage of all nodes in the cluster.
+      operationId: getClusterNodes
+      responses:
+        '200':
+          description: Cluster Topology Status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterNodesResponse'
+
+  /health:
+    get:
+      summary: Cluster Liveness Healthcheck
+      operationId: getHealth
+      responses:
+        '200':
+          description: System Healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "UP"
+                  cluster_state:
+                    type: string
+                    example: "HEALTHY"
+                  active_nodes:
+                    type: integer
+                    example: 28
+
+components:
+  schemas:
+    CacheHitResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "HIT"
+        key:
+          type: string
+          example: "user:profile:98214"
+        value:
+          type: object
+          example:
+            user_id: "98214"
+            name: "Sarah Connor"
+            tier: "PREMIUM"
+        ttl_remaining_ms:
+          type: integer
+          example: 284500
+        node_id:
+          type: string
+          example: "node-p1-a1"
+
+    CacheMissResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: "MISS"
+        key:
+          type: string
+          example: "user:profile:98214"
+        message:
+          type: string
+          example: "Key not present in cache node"
+
+    PutCacheRequest:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          example: "user:profile:98214"
+        value:
+          type: object
+          example:
+            user_id: "98214"
+            name: "Sarah Connor"
+            tier: "PREMIUM"
+        ttl_seconds:
+          type: integer
+          example: 3600
+        write_strategy:
+          type: string
+          enum: [WRITE_THROUGH, WRITE_BEHIND, CACHE_ASIDE]
+          default: WRITE_BEHIND
+
+    PutCacheResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        key:
+          type: string
+          example: "user:profile:98214"
+        allocated_bytes:
+          type: integer
+          example: 2180
+        partition_id:
+          type: string
+          example: "partition-A"
+        node_id:
+          type: string
+          example: "node-p1-a1"
+
+    BatchGetCacheResponse:
+      type: object
+      properties:
+        hits:
+          type: object
+          additionalProperties: true
+          example:
+            "user:profile:101": { "user_id": "101", "name": "Alice" }
+        misses:
+          type: array
+          items:
+            type: string
+          example: ["user:profile:102"]
+
+    ClusterNodesResponse:
+      type: object
+      properties:
+        total_nodes:
+          type: integer
+          example: 3
+        active_partitions:
+          type: integer
+          example: 3
+        nodes:
+          type: array
+          items:
+            type: object
+            properties:
+              node_id:
+                type: string
+                example: "Node_A"
+              role:
+                type: string
+                example: "PRIMARY"
+              ip:
+                type: string
+                example: "10.0.1.15"
+              status:
+                type: string
+                example: "ONLINE"
+              memory_used_mb:
+                type: integer
+                example: 18450
+              keys_count:
+                type: integer
+                example: 3345000
