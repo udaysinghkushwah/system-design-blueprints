@@ -1638,6 +1638,84 @@ const systemData = {
 }`
             }
         }
+    },
+    rate_limiter: {
+        title: "Distributed Rate Limiter System",
+        description: "High-throughput, ultra-low-latency traffic throttling engine enforcing API quotas via atomic Redis Lua scripts and edge sidecars.",
+        docLink: "viewer.html?file=level_8_distributed_systems/rate_limiter/rate_limiter_system_design.md",
+        techStack: [
+            { service: "Amazon CloudFront & AWS WAF", role: "Edge ingress enforcing coarse IP rate limits and DDoS mitigation." },
+            { service: "Amazon API Gateway / Envoy Proxy", role: "Executes sidecar filter checks with sub-2ms latency on request hot path." },
+            { service: "Amazon ElastiCache for Redis", role: "Multi-AZ sharded cluster executing atomic Lua scripts for Token Bucket & Sliding Window Counters." },
+            { service: "Amazon Aurora PostgreSQL Global DB", role: "Authoritative relational database for client subscription tiers and dynamic endpoint rules." },
+            { service: "Amazon MSK (Kafka) & ClickHouse", role: "Asynchronous stream pipeline logging throttle violation audits for security telemetry." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "CloudFront & AWS WAF Edge",
+                category: "Edge Ingress",
+                description: "Initial edge layer absorbing SYN floods and basic IP rate violations before reaching VPC subnets.",
+                payload: `{"edge_location": "IAD89-C1", "client_ip": "198.51.100.42", "waf_action": "ALLOW"}`,
+                config: `resource "aws_wafv2_web_acl" "rate_limiter_waf" {
+  name  = "global-rate-limiter-waf"
+  scope = "CLOUDFRONT"
+  rule {
+    name     = "IPRateLimitRule"
+    priority = 1
+    statement {
+      rate_based_statement {
+        limit              = 2000
+        aggregate_key_type = "IP"
+      }
+    }
+  }
+}`
+            },
+            "proxy": {
+                name: "Envoy Sidecar Rate Limit Evaluator",
+                category: "Compute Interceptor",
+                description: "gRPC sidecar filter checking client API keys and routes against active rate limit policies in Redis.",
+                payload: `{"tenant_id": "acme", "client_key": "usr_9981", "route": "/v1/payments", "status": "CHECKING"}`,
+                config: `resource "aws_ecs_service" "rate_limiter_sidecar" {
+  name            = "rate-limiter-sidecar"
+  task_definition = aws_ecs_task_definition.sidecar.arn
+  desired_count   = 12
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis Cluster (Lua Engine)",
+                category: "Atomic Cache Tier",
+                description: "Stores atomic sliding window counters and token buckets. Executes check-and-decrement Lua script in <1ms.",
+                payload: `EVALSHA lua_sliding_counter 2 "rl:acme:usr_9981:1785338400" "rl:acme:usr_9981:1785338340" 5000 0.35 120\nReturns: [1, 4812, 0]`,
+                config: `resource "aws_elasticache_replication_group" "redis_rate_limiter" {
+  replication_group_id = "rate-limiter-redis-cluster"
+  node_type            = "cache.r6g.xlarge"
+  num_node_groups      = 6
+  replicas_per_node_group = 1
+}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL (Rules DB)",
+                category: "Metadata Store",
+                description: "Authoritative relational store for client subscription tiers, API route rate limit rules, and custom quota overrides.",
+                payload: `SELECT rule_id, max_requests, window_seconds FROM rate_limit_rules WHERE tenant_id = 'acme' AND target_route = '/v1/payments';`,
+                config: `resource "aws_rds_cluster" "rules_db" {
+  cluster_identifier = "rate-limiter-rules-aurora"
+  engine             = "aurora-postgresql"
+  database_name      = "rate_limiter_config"
+}`
+            },
+            "s3": {
+                name: "Amazon MSK Kafka (Audit Telemetry)",
+                category: "Async Logging",
+                description: "Buffers HTTP 429 throttle events asynchronously without slowing down request execution.",
+                payload: `{"event": "THROTTLE_VIOLATION", "tenant_id": "acme", "client_id": "usr_9981", "limit": 5000, "retry_after": 45}`,
+                config: `resource "aws_msk_cluster" "rate_limit_audit" {
+  cluster_name  = "rate-limit-audit-events"
+  kafka_version = "3.5.1"
+}`
+            }
+        }
     }
 };
 
@@ -2437,6 +2515,68 @@ function renderSVG() {
             <g class="interactive-node" id="target" transform="translate(680, 210)">
                 <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
                 <text x="40" y="45" font-family="Outfit" font-size="12" fill="#10b981" font-weight="700" text-anchor="middle">Target Pods</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "rate_limiter") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- VPC Box -->
+            <rect x="180" y="80" width="580" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="200" y="110" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">VPC Rate Limiter Region</text>
+
+            <!-- Connections -->
+            <path d="M120 250 L 200 250" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 220 L 420 170" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 280 L 420 330" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M270 300 L 270 350" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 250 L 680 250" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <!-- Neon Flow Lines -->
+            <path class="data-flow-line" d="M120 250 L 200 250" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 220 L 420 170" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 280 L 420 330" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M270 300 L 270 350" stroke="#ef5350" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 250 L 680 250" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <!-- Ingress: CloudFront/WAF -->
+            <g class="interactive-node" id="ingress" transform="translate(40, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="11" fill="#ff9800" font-weight="700" text-anchor="middle">CloudFront</text>
+                <text x="40" y="58" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">WAF Edge</text>
+            </g>
+
+            <!-- Envoy Sidecar Proxy -->
+            <g class="interactive-node" id="proxy" transform="translate(200, 200)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="40" font-family="Outfit" font-size="12" fill="#3b82f6" font-weight="700" text-anchor="middle">Envoy Sidecar</text>
+                <text x="70" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Rate Evaluator</text>
+            </g>
+
+            <!-- ElastiCache Redis -->
+            <g class="interactive-node" id="redis" transform="translate(420, 120)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Atomic Lua Scripts</text>
+            </g>
+
+            <!-- Aurora PostgreSQL Rules DB -->
+            <g class="interactive-node" id="db" transform="translate(420, 280)">
+                <rect x="0" y="0" width="180" height="90" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="90" y="40" font-family="Outfit" font-size="13" fill="#ab47bc" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+                <text x="90" y="65" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Rate Limit Rules</text>
+            </g>
+
+            <!-- MSK Kafka Audit -->
+            <g class="interactive-node" id="s3" transform="translate(200, 350)">
+                <rect x="0" y="0" width="140" height="50" rx="8" fill="#111827" stroke="#ef5350" stroke-width="1.5" />
+                <text x="70" y="30" font-family="Outfit" font-size="11" fill="#ef5350" font-weight="700" text-anchor="middle">MSK Kafka Audit</text>
+            </g>
+
+            <!-- Backend Services -->
+            <g class="interactive-node" id="target" transform="translate(680, 210)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="40" y="40" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Backend</text>
+                <text x="40" y="58" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Services</text>
             </g>
         </svg>`;
     }

@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 21 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 22 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -48,6 +48,7 @@ We have built a premium, interactive web dashboard to explore all 21 completed d
     - [🔒 Distributed Lock System Design](#82-distributed-lock-system-design)
     - [📥 Distributed Queue System Design](#83-distributed-queue-system-design)
     - [🌐 API Gateway System Design](#84-api-gateway-system-design)
+    - [🚦 Rate Limiter System Design](#85-rate-limiter-system-design)
 - [☕ Support](#-support)
 
 ## 🗺️ System Design Roadmap
@@ -166,7 +167,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 3 | Distributed Queue | ✅ [Blueprint](./level_8_distributed_systems/distributed_queue/distributed_queue_system_design.md) |
 | 4 | API Gateway | ✅ [Blueprint](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md) |
 | 5 | Service Discovery | ⬜ Planned |
-| 6 | Rate Limiter | ⬜ Planned |
+| 6 | Rate Limiter | ✅ [Blueprint](./level_8_distributed_systems/rate_limiter/rate_limiter_system_design.md) |
 | 7 | Circuit Breaker | ⬜ Planned |
 | 8 | Saga Pattern | ⬜ Planned |
 | 9 | CQRS | ⬜ Planned |
@@ -289,7 +290,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
-| 8 | Distributed Systems | 10 | 1 | ✅⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
+| 8 | Distributed Systems | 10 | 5 | ✅✅✅✅✅⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 11 | Financial Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -298,7 +299,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **18** | **16.7%** |
+| | **Total** | **108** | **22** | **20.4%** |
 
 ---
 
@@ -926,6 +927,33 @@ Cloud-native layout showing traffic passing through WAF, NLB layers, ECS Envoy t
 
 ![AWS Cloud-Native API Gateway Architecture](./level_8_distributed_systems/api_gateway/api_gateway_aws_architecture.png)
 
+### 8.5 Rate Limiter System Design
+
+A production-grade, highly available, low-latency Distributed Rate Limiter system designed to process 1,000,000+ peak requests per second with <2ms latency overhead. Enforces API traffic quotas, prevents DoS/DDoS attacks, and protects downstream microservices across multi-tenant SaaS tiers. Features atomic Redis Lua scripts for Token Bucket and Sliding Window Counter algorithms, Envoy gRPC sidecar filter integration, dynamic rule updates, HTTP 429 throttling headers, and local edge fail-open resilience.
+
+* **Documentation:** [Rate Limiter Blueprint](./level_8_distributed_systems/rate_limiter/rate_limiter_system_design.md)
+* **OpenAPI 3.0 Contract:** [API Spec](./level_8_distributed_systems/rate_limiter/rate_limiter_api_spec.yaml)
+* **Runnable Mock Server:** `python3 level_8_distributed_systems/rate_limiter/mock_server.py` (Port 8092)
+
+#### Core Technologies & AWS Services Used
+* **Amazon CloudFront & AWS WAF:** Edge ingress enforcing IP-based coarse rate limits and DDoS protection.
+* **Amazon API Gateway & ECS Fargate (Envoy Proxy):** High-throughput gRPC sidecar filter evaluating request rate limits in real time.
+* **Amazon ElastiCache for Redis:** Multi-AZ sharded cluster running atomic Lua scripts for sub-millisecond check-and-decrement.
+* **Amazon Aurora PostgreSQL Global DB:** Authoritative relational store for client subscription tiers, API route policies, and custom quota overrides.
+* **Amazon MSK Kafka & ClickHouse:** Asynchronous stream processing pipeline logging throttle violation audits for security telemetry.
+
+#### Rate Limiter Architecture Diagrams
+
+##### A. High-Level System Architecture & Sidecar Evaluator
+Visual diagram detailing Client Apps, Edge WAF/CloudFront, Envoy Sidecar Evaluator, ElastiCache Redis Cluster (Atomic Lua scripts), Aurora PostgreSQL Rules DB, and MSK Kafka Audit pipeline.
+
+![Rate Limiter System Architecture](./level_8_distributed_systems/rate_limiter/rate_limiter_system_architecture.png)
+
+##### B. AWS Cloud-Native Rate Limiter Infrastructure
+Cloud-native layout showing Route 53, CloudFront/WAF, API Gateway, ECS Fargate Envoy sidecars, ElastiCache Redis Multi-AZ shards, Aurora PostgreSQL Global Database, MSK Kafka, and CloudWatch metrics alarms.
+
+![AWS Cloud-Native Rate Limiter Architecture](./level_8_distributed_systems/rate_limiter/rate_limiter_aws_architecture.png)
+
 ## ☕ Support
 
 If you find these system design blueprints helpful, support my work by buying me a chai!
@@ -940,4 +968,4 @@ If you find these system design blueprints helpful, support my work by buying me
 
 ---
 
-*Updated on 2026-07-24*
+*Updated on 2026-07-29*

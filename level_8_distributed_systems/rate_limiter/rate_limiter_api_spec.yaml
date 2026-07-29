@@ -1,0 +1,236 @@
+openapi: 3.0.3
+info:
+  title: Distributed Rate Limiter Service API
+  description: Production-grade API specification for a high-scale Distributed Rate Limiter system supporting atomic token checking, dynamic rate limit rules, tier management, and traffic metrics.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8092
+    description: Local Mock Server
+  - url: https://ratelimiter.internal.net
+    description: Production Cluster Ingress
+
+paths:
+  /v1/rate-limit/check:
+    post:
+      summary: Evaluate Rate Limit for Request
+      description: Evaluates whether an incoming HTTP request should be allowed or throttled based on client identifier, route, and tier policy.
+      operationId: evaluateRateLimit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateLimitCheckRequest'
+      responses:
+        '200':
+          description: Request allowed within current quota.
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+              description: Maximum requests allowed in current window.
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+              description: Remaining allowed requests in window.
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+              description: Unix epoch timestamp when current window resets.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitCheckResponse'
+        '429':
+          description: Quota exceeded. Request throttled.
+          headers:
+            X-RateLimit-Limit:
+              schema:
+                type: integer
+            X-RateLimit-Remaining:
+              schema:
+                type: integer
+            X-RateLimit-Reset:
+              schema:
+                type: integer
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds client must wait before retrying.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitCheckResponse'
+
+  /v1/rules:
+    get:
+      summary: List Active Rate Limit Rules
+      description: Returns all active rate limit rules configured across tenant routes.
+      operationId: listRules
+      responses:
+        '200':
+          description: List of rules retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RateLimitRule'
+    post:
+      summary: Create or Update Rate Limit Rule
+      description: Dynamically creates or updates a rate limiting policy for a target route.
+      operationId: createRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RateLimitRuleInput'
+      responses:
+        '201':
+          description: Rule created successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitRule'
+
+  /v1/metrics:
+    get:
+      summary: Get Rate Limiter Metrics
+      description: Retrieves realtime metrics on total requests processed, allowed count, throttled count, and check latency.
+      operationId: getMetrics
+      responses:
+        '200':
+          description: System metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+components:
+  schemas:
+    RateLimitCheckRequest:
+      type: object
+      required:
+        - tenant_id
+        - client_identifier
+        - route
+      properties:
+        tenant_id:
+          type: string
+          example: acme_corp
+        client_identifier:
+          type: string
+          example: usr_live_9981
+        client_ip:
+          type: string
+          example: 198.51.100.42
+        route:
+          type: string
+          example: /v1/payments
+        http_method:
+          type: string
+          example: POST
+        timestamp:
+          type: integer
+          example: 1785338415
+
+    RateLimitCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ALLOWED, THROTTLED]
+          example: ALLOWED
+        rule_id:
+          type: string
+          example: rule-payment-101
+        algorithm:
+          type: string
+          example: SLIDING_WINDOW_COUNTER
+        limit:
+          type: integer
+          example: 5000
+        remaining:
+          type: integer
+          example: 4812
+        reset_timestamp:
+          type: integer
+          example: 1785338460
+        retry_after_seconds:
+          type: integer
+          example: 0
+        shadow_mode:
+          type: boolean
+          example: false
+
+    RateLimitRule:
+      type: object
+      properties:
+        rule_id:
+          type: string
+          example: rule-payment-101
+        tenant_id:
+          type: string
+          example: acme_corp
+        target_route:
+          type: string
+          example: /v1/payments
+        client_tier:
+          type: string
+          example: PRO
+        time_window_seconds:
+          type: integer
+          example: 60
+        max_requests:
+          type: integer
+          example: 5000
+        algorithm:
+          type: string
+          enum: [TOKEN_BUCKET, LEAKY_BUCKET, FIXED_WINDOW, SLIDING_WINDOW_COUNTER]
+          example: SLIDING_WINDOW_COUNTER
+        action_type:
+          type: string
+          enum: [REJECT, SHADOW]
+          example: REJECT
+        is_active:
+          type: boolean
+          example: true
+
+    RateLimitRuleInput:
+      type: object
+      required:
+        - tenant_id
+        - target_route
+        - max_requests
+        - time_window_seconds
+      properties:
+        tenant_id:
+          type: string
+        target_route:
+          type: string
+        max_requests:
+          type: integer
+        time_window_seconds:
+          type: integer
+        algorithm:
+          type: string
+
+    MetricsResponse:
+      type: object
+      properties:
+        total_evaluations:
+          type: integer
+          example: 1048576
+        allowed_count:
+          type: integer
+          example: 1040000
+        throttled_count:
+          type: integer
+          example: 8576
+        p99_latency_ms:
+          type: number
+          example: 1.2
