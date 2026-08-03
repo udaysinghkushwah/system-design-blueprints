@@ -1716,6 +1716,119 @@ const systemData = {
 }`
             }
         }
+    },
+    spell_checker: {
+        title: "Distributed Spell Checker System",
+        description: "BK-Tree edit distance candidate engine with Bloom Filter fast-reject, KenLM n-gram contextual scoring, and BERT re-ranking at 3B queries/day.",
+        docLink: "viewer.html?file=level_10_search_systems/spell_checker/spell_checker_system_design.md",
+        techStack: [
+            { service: "Amazon CloudFront & AWS WAF", role: "Edge CDN caching hot word correction responses at 400+ locations. DDoS protection at ingress." },
+            { service: "Amazon ECS Fargate (Spell Service)", role: "Stateless tasks running Bloom Filter + BK-Tree + KenLM in-process. Auto-scales 10–200 tasks per region." },
+            { service: "Amazon ElastiCache for Redis", role: "6-shard cluster caching suggestion JSON for hot misspelled words. 10 GB working set. Also stores Bloom Filter bitfields." },
+            { service: "Amazon Aurora PostgreSQL Global DB", role: "Stores user personal dictionaries and A/B ranking experiment configs. Multi-AZ with 3 read replicas." },
+            { service: "Amazon SageMaker (BERT Re-ranker)", role: "GPU endpoint serving fine-tuned BERT for context-aware re-ranking in Premium mode (< 50ms)." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "CloudFront CDN + AWS WAF",
+                category: "Edge Ingress",
+                description: "Caches hot correction responses (TTL=3600s) for the most common misspellings globally. WAF blocks IP addresses exceeding 10K req/min.",
+                payload: `{"edge_location": "IAD89-C1", "word": "recieve", "cache_status": "MISS", "client_ip": "203.0.113.42"}`,
+                config: `resource "aws_cloudfront_distribution" "spell_cdn" {
+  origin {
+    domain_name = aws_lb.spell_alb.dns_name
+    origin_id   = "SpellALB"
+  }
+  cache_behavior {
+    path_pattern     = "/v1/spell/suggest*"
+    allowed_methods  = ["GET", "HEAD"]
+    cached_methods   = ["GET", "HEAD"]
+    default_ttl      = 3600
+    max_ttl          = 86400
+  }
+  enabled = true
+}`
+            },
+            "proxy": {
+                name: "ECS Fargate Spell Check Service",
+                category: "Compute Engine",
+                description: "Runs full pipeline in-process: Language Detect → Bloom Filter (600KB) → BK-Tree (100MB) → KenLM LM → Response Ranker. 2vCPU / 4GB per task.",
+                payload: `{
+  "word": "recieve",
+  "pipeline": "bloom_miss → bk_tree_search → lm_score → rank",
+  "bk_tree_candidates": ["receive", "relieve", "reprieve"],
+  "latency_breakdown_ms": {"bloom": 0.1, "bk_tree": 4, "lm_score": 8, "total": 18}
+}`,
+                config: `resource "aws_ecs_service" "spell_service" {
+  name            = "spell-checker-service"
+  cluster         = aws_ecs_cluster.spell.id
+  task_definition = aws_ecs_task_definition.spell.arn
+  desired_count   = 20
+  launch_type     = "FARGATE"
+}
+resource "aws_appautoscaling_policy" "spell_cpu" {
+  policy_type = "TargetTrackingScaling"
+  target_tracking_scaling_policy_configuration {
+    target_value       = 60.0
+    predefined_metric_type = "ECSServiceAverageCPUUtilization"
+  }
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis (Suggestion Cache)",
+                category: "Cache Tier",
+                description: "Caches ranked suggestion lists for hot misspelled words. Key: spell:{lang}:{word_sha256}. Also stores phonetic index and rate limit counters.",
+                payload: `GET spell:en-US:8d3f9a2b
+"[{\\"word\\":\\"receive\\",\\"score\\":0.97,\\"edit_distance\\":1},{\\"word\\":\\"relieve\\",\\"score\\":0.41,\\"edit_distance\\":2}]"
+→ Cache HIT (latency: 1ms)`,
+                config: `resource "aws_elasticache_replication_group" "spell_redis" {
+  replication_group_id    = "spell-checker-redis"
+  node_type               = "cache.r6g.2xlarge"
+  num_node_groups         = 6
+  replicas_per_node_group = 1
+  automatic_failover_enabled = true
+  multi_az_enabled        = true
+}`
+            },
+            "db": {
+                name: "Amazon Aurora PostgreSQL (User Dicts)",
+                category: "Relational Store",
+                description: "Stores user personal dictionaries (custom words like brand names), correction feedback events, and A/B ranking experiment configurations.",
+                payload: `SELECT word FROM user_custom_words
+WHERE user_id = 'usr_abc123' AND language = 'en-US';
+→ ["Grammarly", "ChatGPT", "Kubernetes"]`,
+                config: `resource "aws_rds_cluster" "spell_db" {
+  cluster_identifier   = "spell-checker-aurora"
+  engine               = "aurora-postgresql"
+  database_name        = "spell_checker"
+  master_username      = "admin"
+  global_cluster_identifier = aws_rds_global_cluster.spell_global.id
+  availability_zones   = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}`
+            },
+            "sagemaker": {
+                name: "Amazon SageMaker (BERT Re-ranker)",
+                category: "AI/ML Inference",
+                description: "GPU multi-model endpoint serving fine-tuned bert-base-uncased for context-aware re-ranking. Only invoked for Premium API tier requests.",
+                payload: `{
+  "input": "[CLS] I will [MASK] the package tomorrow [SEP]",
+  "candidates": ["receive", "relieve", "retrieve"],
+  "bert_scores": [0.97, 0.38, 0.15],
+  "top_prediction": "receive",
+  "inference_ms": 14
+}`,
+                config: `resource "aws_sagemaker_endpoint" "bert_reranker" {
+  name               = "spell-bert-reranker"
+  endpoint_config_name = aws_sagemaker_endpoint_configuration.bert.name
+}
+resource "aws_sagemaker_endpoint_configuration" "bert" {
+  production_variants {
+    instance_type        = "ml.g4dn.xlarge"
+    initial_instance_count = 4
+  }
+}`
+            }
+        }
     }
 };
 
@@ -2577,6 +2690,83 @@ function renderSVG() {
                 <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
                 <text x="40" y="40" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Backend</text>
                 <text x="40" y="58" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Services</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "spell_checker") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- VPC Box -->
+            <rect x="170" y="70" width="590" height="350" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="190" y="98" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">ECS Fargate — Spell Check Service Cluster</text>
+
+            <!-- Connections (static) -->
+            <path d="M110 220 L190 220" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M330 220 L420 155" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M330 240 L420 300" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M330 220 L620 220" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M265 290 L265 355" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M560 155 L620 220" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M560 300 L620 240" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <!-- Neon Flow Lines -->
+            <path class="data-flow-line" d="M110 220 L190 220" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M330 220 L420 155" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M330 240 L420 300" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M265 290 L265 355" stroke="#ef5350" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M560 155 L620 220" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M560 300 L620 240" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <!-- Ingress: CloudFront + WAF -->
+            <g class="interactive-node" id="ingress" transform="translate(30, 180)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="36" font-family="Outfit" font-size="10" fill="#ff9800" font-weight="700" text-anchor="middle">CloudFront</text>
+                <text x="40" y="52" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">+ WAF</text>
+                <text x="40" y="68" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Edge Cache</text>
+            </g>
+
+            <!-- Spell Check Service (ECS Fargate) — main pipeline box -->
+            <g class="interactive-node" id="proxy" transform="translate(190, 130)">
+                <rect x="0" y="0" width="140" height="180" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="28" font-family="Outfit" font-size="11" fill="#3b82f6" font-weight="700" text-anchor="middle">Spell Pipeline</text>
+                <text x="70" y="50" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🌸 Bloom Filter</text>
+                <text x="70" y="68" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🌳 BK-Tree Engine</text>
+                <text x="70" y="86" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">📊 KenLM 5-gram</text>
+                <text x="70" y="104" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🤖 BERT Ranker</text>
+                <rect x="10" y="118" width="120" height="52" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1" />
+                <text x="70" y="140" font-family="Outfit" font-size="9" fill="#60a5fa" text-anchor="middle">ECS Fargate</text>
+                <text x="70" y="155" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">2vCPU / 4GB</text>
+                <text x="70" y="168" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Min 10 / Max 200</text>
+            </g>
+
+            <!-- Redis Suggestion Cache -->
+            <g class="interactive-node" id="redis" transform="translate(420, 110)">
+                <rect x="0" y="0" width="140" height="80" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="30" font-family="Outfit" font-size="12" fill="#3b82f6" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="70" y="50" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">Suggestion Cache</text>
+                <text x="70" y="66" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">6 shards · 10 GB</text>
+            </g>
+
+            <!-- Aurora PostgreSQL -->
+            <g class="interactive-node" id="db" transform="translate(420, 260)">
+                <rect x="0" y="0" width="140" height="80" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="70" y="30" font-family="Outfit" font-size="12" fill="#ab47bc" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+                <text x="70" y="50" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">User Dictionaries</text>
+                <text x="70" y="66" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Global DB · Multi-AZ</text>
+            </g>
+
+            <!-- MSK Kafka Feedback -->
+            <g class="interactive-node" id="sagemaker" transform="translate(190, 355)">
+                <rect x="0" y="0" width="140" height="50" rx="8" fill="#111827" stroke="#ef5350" stroke-width="1.5" />
+                <text x="70" y="22" font-family="Outfit" font-size="10" fill="#ef5350" font-weight="700" text-anchor="middle">MSK Kafka + SageMaker</text>
+                <text x="70" y="38" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Feedback → BERT Training</text>
+            </g>
+
+            <!-- Backend / Response -->
+            <g class="interactive-node" id="target" transform="translate(620, 180)">
+                <rect x="0" y="0" width="100" height="90" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="50" y="36" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Ranked</text>
+                <text x="50" y="54" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Suggestions</text>
+                <text x="50" y="72" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">≤ 50ms P99</text>
             </g>
         </svg>`;
     }

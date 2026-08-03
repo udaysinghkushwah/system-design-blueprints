@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 22 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 23 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -49,6 +49,8 @@ We have built a premium, interactive web dashboard to explore all 22 completed d
     - [📥 Distributed Queue System Design](#83-distributed-queue-system-design)
     - [🌐 API Gateway System Design](#84-api-gateway-system-design)
     - [🚦 Rate Limiter System Design](#85-rate-limiter-system-design)
+  - **Level 10 – Search Systems**
+    - [🔤 Spell Checker System Design](#101-spell-checker-system-design)
 - [☕ Support](#-support)
 
 ## 🗺️ System Design Roadmap
@@ -194,7 +196,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 |---|-------|--------|
 | 1 | Design Google Search | ⬜ Planned |
 | 2 | Search Autocomplete | ⬜ Planned |
-| 3 | Spell Checker | ⬜ Planned |
+| 3 | Spell Checker | ✅ [Blueprint](./level_10_search_systems/spell_checker/spell_checker_system_design.md) |
 | 4 | Web Crawler | ⬜ Planned |
 | 5 | Search Ranking | ⬜ Planned |
 
@@ -292,14 +294,14 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
 | 8 | Distributed Systems | 10 | 5 | ✅✅✅✅✅⬜⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
-| 10 | Search Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
+| 10 | Search Systems | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 11 | Financial Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 12 | Cloud Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 13 | Notification Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **22** | **20.4%** |
+| | **Total** | **108** | **23** | **21.3%** |
 
 ---
 
@@ -954,6 +956,40 @@ Cloud-native layout showing Route 53, CloudFront/WAF, API Gateway, ECS Fargate E
 
 ![AWS Cloud-Native Rate Limiter Architecture](./level_8_distributed_systems/rate_limiter/rate_limiter_aws_architecture.png)
 
+---
+
+### Level 10 – Search Systems
+
+<a id="101-spell-checker-system-design"></a>
+#### 10.1 Spell Checker System Design
+A production-grade, AI-assisted **Distributed Spell Checker** serving **3B+ daily correction queries** across search engines, document editors, and messaging platforms. Features multi-layer candidate generation (Bloom Filter → BK-Tree Damerau-Levenshtein → Phonetic fallback), KenLM 5-gram contextual scoring, optional BERT contextual re-ranking, and AWS cloud-native active-active multi-region deployment with < 50ms P99 latency.
+
+* **Documentation:** [Spell Checker System Design (spell_checker_system_design.md)](./level_10_search_systems/spell_checker/spell_checker_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (spell_checker_api_spec.yaml)](./level_10_search_systems/spell_checker/spell_checker_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_10_search_systems/spell_checker/mock_server.py) (run using `python3 level_10_search_systems/spell_checker/mock_server.py`)
+
+#### Spell Checker Tech Stack Details (with AWS Service Mapping)
+* **Amazon CloudFront + AWS WAF:** Edge CDN caching hot word correction responses (TTL=3600s) at 400+ global locations. WAF blocks IP addresses exceeding 10K req/min for DDoS mitigation.
+* **Amazon ECS Fargate (Spell Check Service):** Stateless tasks running the full in-process pipeline: Language Detector → Bloom Filter (600 KB) → BK-Tree (100 MB) → KenLM 5-gram LM → Ranked Response. Auto-scales 10–200 tasks per region.
+* **Amazon ElastiCache for Redis:** 6-shard cluster (cache.r6g.2xlarge) caching ranked suggestion JSON for hot misspelled words. 10 GB working set. Also stores Bloom Filter bitfields and phonetic index.
+* **Amazon Aurora PostgreSQL Global DB:** Multi-AZ relational store for 50M+ user personal dictionaries and A/B ranking experiment configurations. 3 read replicas per region.
+* **Amazon SageMaker (BERT Re-ranker):** GPU multi-model endpoint serving fine-tuned `bert-base-uncased` for context-aware re-ranking on Premium API tier (< 50ms). Weekly retraining on Kafka feedback events.
+* **Amazon MSK (Kafka):** Decouples correction feedback signals from the hot path. Topic: `spell.feedback.v1`. Consumed by SageMaker training jobs for continuous model improvement.
+
+#### Spell Checker Architecture Diagrams
+
+##### A. High-Level System Architecture
+Five-layer design: Client Layer → CloudFront/WAF Edge → ECS Fargate Spell Pipeline (Bloom Filter → BK-Tree → KenLM → BERT) → Redis Cache → Aurora/S3/Kafka data tier.
+
+![Spell Checker System Architecture](./level_10_search_systems/spell_checker/spell_checker_system_architecture.png)
+
+##### B. AWS Cloud-Native Spell Checker Architecture
+Multi-region active-active AWS deployment: Route 53 latency routing → CloudFront/WAF → ECS Fargate Spell Service Cluster (in-pod BK-Tree + KenLM) → ElastiCache Redis → Aurora PostgreSQL Global DB → SageMaker BERT endpoint + MSK Kafka feedback pipeline.
+
+![AWS Cloud-Native Spell Checker Architecture](./level_10_search_systems/spell_checker/spell_checker_aws_architecture.png)
+
+---
+
 ## ☕ Support
 
 If you find these system design blueprints helpful, support my work by buying me a chai!
@@ -968,4 +1004,4 @@ If you find these system design blueprints helpful, support my work by buying me
 
 ---
 
-*Updated on 2026-07-29*
+*Updated on 2026-08-03*

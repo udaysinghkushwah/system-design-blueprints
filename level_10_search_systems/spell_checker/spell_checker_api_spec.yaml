@@ -1,0 +1,634 @@
+openapi: 3.0.3
+info:
+  title: Spell Checker API
+  description: |
+    Production-grade Distributed Spell Checker API — powered by BK-Tree edit distance candidate generation,
+    N-gram KenLM language model contextual scoring, and optional BERT-based re-ranking.
+    Serves 3B+ daily correction queries with < 50ms P99 end-to-end latency.
+  version: 1.0.0
+  contact:
+    name: System Design Blueprints
+    url: https://github.com/udaysinghkushwah/system-design-blueprints
+
+servers:
+  - url: https://api.spellchecker.example.com/v1
+    description: Production API
+  - url: http://localhost:8093/v1
+    description: Local Mock Server
+
+tags:
+  - name: spell
+    description: Core spell checking operations
+  - name: user
+    description: User dictionary management
+  - name: feedback
+    description: Correction feedback for model improvement
+  - name: health
+    description: Health and readiness probes
+
+paths:
+  /spell/check:
+    post:
+      tags: [spell]
+      operationId: checkWord
+      summary: Check spelling of a single word
+      description: |
+        Runs the full spell check pipeline: Bloom Filter fast reject → BK-Tree candidate generation →
+        N-gram LM context scoring → optional BERT re-ranking. Returns ranked correction suggestions.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckWordRequest'
+            example:
+              word: "recieve"
+              language: "en-US"
+              context: "I will recieve the package tomorrow"
+              user_id: "usr_abc123"
+              options:
+                max_suggestions: 5
+                include_autocorrect: true
+                mode: "standard"
+      responses:
+        '200':
+          description: Spell check result with ranked suggestions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckWordResponse'
+              example:
+                word: "recieve"
+                is_correct: false
+                autocorrect: "receive"
+                suggestions:
+                  - word: "receive"
+                    score: 0.97
+                    edit_distance: 1
+                  - word: "relieve"
+                    score: 0.41
+                    edit_distance: 2
+                  - word: "reprieve"
+                    score: 0.22
+                    edit_distance: 3
+                language: "en-US"
+                latency_ms: 18
+                algorithm: "ngram"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /spell/batch:
+    post:
+      tags: [spell]
+      operationId: checkBatchText
+      summary: Check spelling of a full paragraph or document
+      description: |
+        Batch spell checks all words in provided text. Returns per-word error annotations
+        with character offsets for inline highlighting. Supports up to 100,000 characters per request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchCheckRequest'
+            example:
+              text: "I will recieve the packege tommorow and sned it to you."
+              language: "en-US"
+              user_id: "usr_abc123"
+              options:
+                max_suggestions: 3
+                mode: "standard"
+      responses:
+        '200':
+          description: Batch check results with per-word error annotations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchCheckResponse'
+              example:
+                errors:
+                  - word: "recieve"
+                    offset: 10
+                    length: 7
+                    autocorrect: "receive"
+                    suggestions:
+                      - word: "receive"
+                        score: 0.97
+                        edit_distance: 1
+                  - word: "packege"
+                    offset: 22
+                    length: 7
+                    autocorrect: "package"
+                    suggestions:
+                      - word: "package"
+                        score: 0.98
+                        edit_distance: 1
+                  - word: "tommorow"
+                    offset: 30
+                    length: 8
+                    autocorrect: "tomorrow"
+                    suggestions:
+                      - word: "tomorrow"
+                        score: 0.99
+                        edit_distance: 1
+                  - word: "sned"
+                    offset: 43
+                    length: 4
+                    autocorrect: "send"
+                    suggestions:
+                      - word: "send"
+                        score: 0.96
+                        edit_distance: 1
+                      - word: "shed"
+                        score: 0.31
+                        edit_distance: 2
+                total_words: 12
+                error_count: 4
+                latency_ms: 42
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '413':
+          description: Payload Too Large — text exceeds 100,000 characters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /spell/suggest:
+    get:
+      tags: [spell]
+      operationId: getSuggestions
+      summary: Get spelling suggestions for a misspelled word
+      description: Lightweight GET endpoint for simple single-word suggestion lookups (CDN-cacheable).
+      parameters:
+        - name: word
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+          example: "occurance"
+        - name: language
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "en-US"
+          example: "en-US"
+        - name: max
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 10
+            default: 5
+          example: 5
+      responses:
+        '200':
+          description: Suggestions for the misspelled word
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckWordResponse'
+
+  /user/dictionary:
+    get:
+      tags: [user]
+      operationId: getUserDictionary
+      summary: List user's custom dictionary words
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "usr_abc123"
+        - name: language
+          in: query
+          required: false
+          schema:
+            type: string
+            default: "en-US"
+      responses:
+        '200':
+          description: List of custom words
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                  language:
+                    type: string
+                  words:
+                    type: array
+                    items:
+                      type: string
+                  total:
+                    type: integer
+              example:
+                user_id: "usr_abc123"
+                language: "en-US"
+                words: ["Grammarly", "ChatGPT", "Kubernetes"]
+                total: 3
+
+    post:
+      tags: [user]
+      operationId: addUserWord
+      summary: Add a word to user's personal dictionary
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, word]
+              properties:
+                user_id:
+                  type: string
+                word:
+                  type: string
+                  maxLength: 100
+                language:
+                  type: string
+                  default: "en-US"
+            example:
+              user_id: "usr_abc123"
+              word: "Grammarly"
+              language: "en-US"
+      responses:
+        '201':
+          description: Word added to personal dictionary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  word:
+                    type: string
+                  user_id:
+                    type: string
+              example:
+                success: true
+                word: "Grammarly"
+                user_id: "usr_abc123"
+
+  /user/dictionary/{word}:
+    delete:
+      tags: [user]
+      operationId: removeUserWord
+      summary: Remove a word from user's personal dictionary
+      parameters:
+        - name: word
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "Grammarly"
+        - name: user_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "usr_abc123"
+      responses:
+        '200':
+          description: Word removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  word:
+                    type: string
+        '404':
+          description: Word not found in user's dictionary
+
+  /spell/feedback:
+    post:
+      tags: [feedback]
+      operationId: submitFeedback
+      summary: Submit correction acceptance or rejection feedback
+      description: |
+        Sends user correction feedback to Kafka topic `spell.feedback.v1` for
+        asynchronous BERT model retraining. Uses session_id + original_word as idempotency key.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequest'
+            example:
+              original_word: "recieve"
+              selected_suggestion: "receive"
+              accepted: true
+              session_id: "sess_xyz789"
+              language: "en-US"
+      responses:
+        '202':
+          description: Feedback accepted for async processing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accepted:
+                    type: boolean
+                  session_id:
+                    type: string
+              example:
+                accepted: true
+                session_id: "sess_xyz789"
+
+  /health/live:
+    get:
+      tags: [health]
+      operationId: livenessCheck
+      summary: Kubernetes liveness probe
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: readinessCheck
+      summary: Kubernetes readiness probe — checks BK-Tree loaded + Redis connected
+      responses:
+        '200':
+          description: Service is ready to serve traffic
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+              example:
+                status: "ready"
+                bk_tree_loaded: true
+                bloom_filter_loaded: true
+                redis_connected: true
+                languages_loaded: ["en-US", "fr-FR", "es-ES"]
+                dictionary_version: "v1.23"
+        '503':
+          description: Service not ready — BK-Tree still loading
+
+components:
+  schemas:
+    CheckWordRequest:
+      type: object
+      required: [word]
+      properties:
+        word:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: The word to spell check
+        language:
+          type: string
+          default: "en-US"
+          description: BCP 47 language code
+        context:
+          type: string
+          maxLength: 500
+          description: Surrounding sentence context for contextual scoring
+        user_id:
+          type: string
+          description: User ID for personal dictionary lookup
+        options:
+          type: object
+          properties:
+            max_suggestions:
+              type: integer
+              minimum: 1
+              maximum: 10
+              default: 5
+            include_autocorrect:
+              type: boolean
+              default: true
+            mode:
+              type: string
+              enum: [standard, premium, fast]
+              default: standard
+              description: |
+                standard — KenLM n-gram scoring (< 20ms)
+                premium  — BERT re-ranking (< 50ms, higher accuracy)
+                fast     — Edit distance only, no LM (< 5ms)
+
+    CheckWordResponse:
+      type: object
+      properties:
+        word:
+          type: string
+        is_correct:
+          type: boolean
+        autocorrect:
+          type: string
+          nullable: true
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        language:
+          type: string
+        latency_ms:
+          type: integer
+        algorithm:
+          type: string
+          enum: [ngram, bert, fast, cache_hit]
+
+    Suggestion:
+      type: object
+      properties:
+        word:
+          type: string
+        score:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+        edit_distance:
+          type: integer
+
+    BatchCheckRequest:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+          maxLength: 100000
+        language:
+          type: string
+          default: "en-US"
+        user_id:
+          type: string
+        options:
+          type: object
+          properties:
+            max_suggestions:
+              type: integer
+              default: 3
+            mode:
+              type: string
+              enum: [standard, premium, fast]
+              default: standard
+
+    BatchCheckResponse:
+      type: object
+      properties:
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/WordError'
+        total_words:
+          type: integer
+        error_count:
+          type: integer
+        latency_ms:
+          type: integer
+
+    WordError:
+      type: object
+      properties:
+        word:
+          type: string
+        offset:
+          type: integer
+          description: Character offset from start of text
+        length:
+          type: integer
+          description: Character length of the misspelled word
+        autocorrect:
+          type: string
+          nullable: true
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+
+    FeedbackRequest:
+      type: object
+      required: [original_word, selected_suggestion, accepted, session_id]
+      properties:
+        original_word:
+          type: string
+        selected_suggestion:
+          type: string
+        accepted:
+          type: boolean
+        session_id:
+          type: string
+          format: uuid
+        language:
+          type: string
+          default: "en-US"
+        context:
+          type: string
+          maxLength: 500
+
+    ReadinessResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, loading, degraded]
+        bk_tree_loaded:
+          type: boolean
+        bloom_filter_loaded:
+          type: boolean
+        redis_connected:
+          type: boolean
+        languages_loaded:
+          type: array
+          items:
+            type: string
+        dictionary_version:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "INVALID_REQUEST"
+            message: "word must be between 1 and 100 characters"
+            request_id: "req_8k2mna"
+    RateLimitExceeded:
+      description: API rate limit exceeded
+      headers:
+        X-RateLimit-Limit:
+          schema:
+            type: integer
+          description: Request limit per minute
+        X-RateLimit-Remaining:
+          schema:
+            type: integer
+          description: Remaining requests in current window
+        X-RateLimit-Reset:
+          schema:
+            type: integer
+          description: Unix epoch timestamp when window resets
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "RATE_LIMIT_EXCEEDED"
+            message: "API rate limit exceeded. Free tier allows 100 req/min."
+            request_id: "req_9q3pbb"
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
