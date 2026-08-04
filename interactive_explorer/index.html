@@ -15,6 +15,13 @@
                 <span class="logo-dot"></span>
                 <h2>Blueprint Explorer</h2>
             </div>
+
+            <!-- Quick Search Input -->
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="system-search" placeholder="Search 25+ blueprints..." autocomplete="off">
+                <kbd class="search-shortcut">⌘K</kbd>
+            </div>
             
             <div class="sidebar-scroll">
                 <!-- Documentation -->
@@ -102,7 +109,7 @@
                             <span class="nav-icon">🤖</span>
                             <span class="nav-label">AI Agent Loop</span>
                         </button>
-                        <button class="nav-item active" data-system="llm_gateway">
+                        <button class="nav-item" data-system="llm_gateway">
                             <span class="nav-icon">🌐</span>
                             <span class="nav-label">LLM Gateway</span>
                         </button>
@@ -156,7 +163,7 @@
                             <span class="nav-icon">🔤</span>
                             <span class="nav-label">Spell Checker</span>
                         </button>
-                        <button class="nav-item" data-system="search_ranking">
+                        <button class="nav-item active" data-system="search_ranking">
                             <span class="nav-icon">🎯</span>
                             <span class="nav-label">Search Ranking</span>
                         </button>
@@ -164,11 +171,11 @@
                 </div>
             </div>
 
-            <div class="sidebar-footer" style="display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 16px;">
-                <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="btn secondary-btn" style="background: rgba(245, 124, 0, 0.1); border: 1px solid rgba(245, 124, 0, 0.3); color: #ff9800; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; font-weight: 600; padding: 12px; border-radius: 6px; font-size: 0.85rem; transition: all 0.2s ease;">
+            <div class="sidebar-footer">
+                <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="btn secondary-btn chai-btn">
                     <span>☕ Buy Me a Chai</span>
                 </a>
-                <button id="simulate-btn" class="btn primary-btn" style="width: 100%;">Simulate Query Flow</button>
+                <button id="simulate-btn" class="btn primary-btn">Pause Simulation</button>
             </div>
         </aside>
 
@@ -176,24 +183,69 @@
         <main class="main-content">
             <header class="workspace-header">
                 <div class="title-area">
-                    <h1 id="system-title">LLM Gateway Pipeline</h1>
-                    <p id="system-description" class="subtitle">High-throughput proxy layer routing, auditing, and rate-limiting upstream LLM model transactions.</p>
+                    <h1 id="system-title">Multi-Stage Search Ranking Engine</h1>
+                    <p id="system-description" class="subtitle">Multi-stage Learning-to-Rank (LTR) funnel processing 100k+ QPS at &lt;50ms P99 latency: L1 Hybrid Retrieval (BM25 + Vector KNN) → L2 LightGBM Pre-Rank → L3 Deep Neural LTR → L4 MMR Diversity.</p>
                 </div>
-                <div class="status-indicator">
-                    <span class="pulse-dot"></span>
-                    <span class="status-text">Simulating Active Traffic</span>
+                
+                <!-- Live System SLA Metrics Dashboard Bar -->
+                <div class="metrics-bar">
+                    <div class="metric-chip">
+                        <span class="metric-label">P99 Latency</span>
+                        <span class="metric-val" id="metric-latency">&lt; 50ms P99</span>
+                    </div>
+                    <div class="metric-chip">
+                        <span class="metric-label">Peak QPS</span>
+                        <span class="metric-val" id="metric-qps">100,000 QPS</span>
+                    </div>
+                    <div class="metric-chip">
+                        <span class="metric-label">Availability</span>
+                        <span class="metric-val" id="metric-sla">99.99%</span>
+                    </div>
+                    <div class="metric-chip">
+                        <span class="metric-label">Target Scale</span>
+                        <span class="metric-val" id="metric-scale">10B Catalog Items</span>
+                    </div>
+                    <div class="status-indicator">
+                        <span class="pulse-dot"></span>
+                        <span class="status-text">Simulating Active Traffic</span>
+                    </div>
                 </div>
             </header>
 
             <div class="workspace-grid">
                 <!-- Architecture Diagram Stage -->
                 <section class="diagram-card glass-panel">
-                    <div class="card-header">
-                        <h3>Interactive AWS Architecture Flow</h3>
-                        <span class="hint-text">Click on any node to view configuration & payload logs</span>
+                    <div class="card-header border-bottom flex-between">
+                        <div>
+                            <h3>Interactive AWS Architecture Flow</h3>
+                            <span class="hint-text">Click nodes to inspect specs, scroll/drag canvas to zoom/pan, or run guided tour</span>
+                        </div>
+
+                        <!-- Floating Canvas Controls Toolbar -->
+                        <div class="canvas-toolbar">
+                            <button id="btn-zoom-in" class="toolbar-btn" title="Zoom In (+)">➕</button>
+                            <button id="btn-zoom-out" class="toolbar-btn" title="Zoom Out (-)">➖</button>
+                            <button id="btn-reset-view" class="toolbar-btn" title="Reset Canvas (Esc)">🔄</button>
+                            <button id="btn-fullscreen" class="toolbar-btn" title="Toggle Fullscreen">⛶</button>
+                        </div>
                     </div>
+
                     <div class="canvas-container" id="canvas-container">
-                        <!-- SVGs are dynamically loaded here -->
+                        <!-- Dynamic SVG Diagrams rendered here -->
+                    </div>
+
+                    <!-- Step Sequence Walkthrough Player Bar -->
+                    <div class="step-player-bar">
+                        <div class="step-controls">
+                            <button id="step-prev-btn" class="btn secondary-sm">◀ Prev</button>
+                            <span id="step-counter" class="step-counter-badge">0 / 6</span>
+                            <button id="step-next-btn" class="btn secondary-sm">Next ▶</button>
+                            <button id="step-play-btn" class="btn primary-sm">Play Tour ▶️</button>
+                        </div>
+                        <div class="step-info" id="step-banner">
+                            <h4 id="step-title">Interactive Architecture Tour</h4>
+                            <p id="step-desc">Click 'Next' or 'Play Tour' to step through request execution sequence.</p>
+                        </div>
                     </div>
                 </section>
 
@@ -233,6 +285,9 @@
                         </div>
 
                         <div class="tab-content hidden" id="tab-payload">
+                            <div class="code-header">
+                                <button class="copy-code-btn" data-copy-target="ins-payload">📋 Copy Payload JSON</button>
+                            </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-payload" class="language-json">{
   "status": "ready"
@@ -241,6 +296,9 @@
                         </div>
 
                         <div class="tab-content hidden" id="tab-config">
+                            <div class="code-header">
+                                <button class="copy-code-btn" data-copy-target="ins-config">📋 Copy Terraform HCL</button>
+                            </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-config" class="language-terraform"># Resource Configuration</code></pre>
                             </div>
@@ -251,6 +309,7 @@
         </main>
     </div>
     
-    <script src="app.js"></script>
+    <!-- ES Modular Entry Point -->
+    <script type="module" src="js/app.js"></script>
 </body>
 </html>
