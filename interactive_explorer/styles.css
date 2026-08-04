@@ -57,12 +57,10 @@ body {
     flex-shrink: 0;
 }
 
-.logo-dot {
-    width: 12px;
-    height: 12px;
-    background: var(--accent-blue);
-    border-radius: 50%;
-    box-shadow: 0 0 12px var(--accent-blue);
+.logo-icon {
+    font-size: 1.2rem;
+    color: var(--accent-blue);
+    filter: drop-shadow(0 0 8px var(--accent-blue));
 }
 
 .brand h2 {
@@ -85,15 +83,15 @@ body {
 
 .search-icon {
     position: absolute;
-    left: 10px;
-    font-size: 0.8rem;
+    left: 12px;
+    font-size: 0.85rem;
     color: var(--text-secondary);
     pointer-events: none;
 }
 
 #system-search {
     width: 100%;
-    padding: 8px 32px 8px 30px;
+    padding: 8px 32px 8px 34px;
     background: rgba(15, 23, 42, 0.8);
     border: 1px solid var(--border-color);
     border-radius: 8px;
@@ -193,9 +191,21 @@ body {
     transition: all 0.2s ease;
 }
 
+.nav-icon {
+    font-size: 0.9rem;
+    width: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+}
+
 .nav-item:hover {
     background: rgba(255, 255, 255, 0.04);
     color: var(--text-primary);
+}
+
+.nav-item:hover .nav-icon {
+    color: var(--accent-cyan);
 }
 
 .nav-item.active {
@@ -203,6 +213,10 @@ body {
     border-color: rgba(59, 130, 246, 0.3);
     color: var(--accent-cyan);
     box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+}
+
+.nav-item.active .nav-icon {
+    color: var(--accent-cyan);
 }
 
 .sidebar-footer {
@@ -224,8 +238,12 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 8px;
     text-decoration: none;
+}
+
+.btn i {
+    font-size: 0.85rem;
 }
 
 .primary-btn {
@@ -417,10 +435,10 @@ body {
 .canvas-toolbar {
     display: flex;
     align-items: center;
-    gap: 6px;
-    background: rgba(15, 23, 42, 0.8);
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.85);
     border: 1px solid var(--border-color);
-    padding: 4px 8px;
+    padding: 4px 6px;
     border-radius: 8px;
 }
 
@@ -429,15 +447,19 @@ body {
     border: none;
     color: var(--text-secondary);
     font-size: 0.85rem;
-    padding: 4px 8px;
-    border-radius: 4px;
+    padding: 6px 10px;
+    border-radius: 6px;
     cursor: pointer;
     transition: all 0.2s ease;
+
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .toolbar-btn:hover {
     background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary);
+    color: var(--accent-cyan);
 }
 
 /* Diagram Canvas */
@@ -640,9 +662,12 @@ svg {
     border-radius: 6px;
     color: var(--text-secondary);
     font-size: 0.75rem;
-    padding: 4px 10px;
+    padding: 6px 12px;
     cursor: pointer;
     transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .copy-code-btn:hover {
@@ -727,8 +752,10 @@ svg {
 }
 
 .doc-link {
-    display: block;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     width: 100%;
     padding: 10px 0;
     font-weight: 600;
@@ -748,7 +775,7 @@ svg {
     position: fixed;
     bottom: 24px;
     right: 24px;
-    background: rgba(16, 185, 129, 0.9);
+    background: rgba(16, 185, 129, 0.95);
     color: #ffffff;
     padding: 10px 20px;
     border-radius: 8px;
@@ -760,6 +787,9 @@ svg {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
     z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 .toast-notification.show {

@@ -216,7 +216,7 @@ class App {
     toggleTrafficSimulation() {
         const isSimulating = this.canvasController.toggleSimulation();
         if (this.simulateBtn) {
-            this.simulateBtn.textContent = isSimulating ? "Pause Simulation" : "Resume Simulation";
+            this.simulateBtn.innerHTML = isSimulating ? '<i class="fa-solid fa-pause"></i> Pause Simulation' : '<i class="fa-solid fa-play"></i> Resume Simulation';
         }
         if (this.statusIndicator) {
             if (isSimulating) {
@@ -275,7 +275,7 @@ class App {
     }
 
     startStepAutoPlay() {
-        if (this.stepPlayBtn) this.stepPlayBtn.textContent = "Pause Tour ⏸️";
+        if (this.stepPlayBtn) this.stepPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i> Pause Tour';
         this.nextStep();
         this.autoPlayInterval = setInterval(() => {
             this.nextStep();
@@ -287,7 +287,7 @@ class App {
             clearInterval(this.autoPlayInterval);
             this.autoPlayInterval = null;
         }
-        if (this.stepPlayBtn) this.stepPlayBtn.textContent = "Play Tour ▶️";
+        if (this.stepPlayBtn) this.stepPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i> Play Tour';
     }
 
     executeCurrentStep() {

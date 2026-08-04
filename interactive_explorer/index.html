@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive System Design Architecture Explorer</title>
+    <!-- Modern FontAwesome 6 Vector Icon CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
@@ -12,13 +14,13 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand">
-                <span class="logo-dot"></span>
+                <i class="fa-solid fa-cubes-stacked logo-icon"></i>
                 <h2>Blueprint Explorer</h2>
             </div>
 
             <!-- Quick Search Input -->
             <div class="search-box">
-                <span class="search-icon">🔍</span>
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
                 <input type="text" id="system-search" placeholder="Search 25+ blueprints..." autocomplete="off">
                 <kbd class="search-shortcut">⌘K</kbd>
             </div>
@@ -29,7 +31,7 @@
                     <h3>Documentation</h3>
                     <nav class="system-list">
                         <a class="nav-item" href="viewer.html?file=README.md" style="text-decoration: none;">
-                            <span class="nav-icon">📖</span>
+                            <i class="fa-solid fa-book-open nav-icon"></i>
                             <span class="nav-label">Main README Wiki</span>
                         </a>
                     </nav>
@@ -40,39 +42,39 @@
                     <h3>Level 1 – Core Design</h3>
                     <nav class="system-list">
                         <button class="nav-item" data-system="url_shortener">
-                            <span class="nav-icon">🔗</span>
+                            <i class="fa-solid fa-link nav-icon"></i>
                             <span class="nav-label">URL Shortener</span>
                         </button>
                         <button class="nav-item" data-system="pastebin">
-                            <span class="nav-icon">📋</span>
+                            <i class="fa-solid fa-paste nav-icon"></i>
                             <span class="nav-label">Pastebin</span>
                         </button>
                         <button class="nav-item" data-system="file_storage">
-                            <span class="nav-icon">🗄️</span>
+                            <i class="fa-solid fa-box-archive nav-icon"></i>
                             <span class="nav-label">File Storage</span>
                         </button>
                         <button class="nav-item" data-system="dropbox">
-                            <span class="nav-icon">📂</span>
+                            <i class="fa-solid fa-cloud-arrow-up nav-icon"></i>
                             <span class="nav-label">Dropbox Sync</span>
                         </button>
                         <button class="nav-item" data-system="parking_lot">
-                            <span class="nav-icon">🅿️</span>
+                            <i class="fa-solid fa-square-parking nav-icon"></i>
                             <span class="nav-label">Parking Lot</span>
                         </button>
                         <button class="nav-item" data-system="library_management">
-                            <span class="nav-icon">📚</span>
+                            <i class="fa-solid fa-book nav-icon"></i>
                             <span class="nav-label">Library Management</span>
                         </button>
                         <button class="nav-item" data-system="atm_system">
-                            <span class="nav-icon">🏧</span>
+                            <i class="fa-solid fa-credit-card nav-icon"></i>
                             <span class="nav-label">ATM System</span>
                         </button>
                         <button class="nav-item" data-system="elevator_system">
-                            <span class="nav-icon">🛗</span>
+                            <i class="fa-solid fa-elevator nav-icon"></i>
                             <span class="nav-label">Elevator System</span>
                         </button>
                         <button class="nav-item" data-system="hotel_booking">
-                            <span class="nav-icon">🏨</span>
+                            <i class="fa-solid fa-hotel nav-icon"></i>
                             <span class="nav-label">Hotel Booking</span>
                         </button>
                     </nav>
@@ -83,7 +85,7 @@
                     <h3>Level 4 – Delivery</h3>
                     <nav class="system-list">
                         <button class="nav-item" data-system="food_delivery">
-                            <span class="nav-icon">🍔</span>
+                            <i class="fa-solid fa-utensils nav-icon"></i>
                             <span class="nav-label">Food Delivery</span>
                         </button>
                     </nav>
@@ -94,31 +96,31 @@
                     <h3>Level 7 – AI Systems</h3>
                     <nav class="system-list">
                         <button class="nav-item" data-system="rag_pipeline">
-                            <span class="nav-icon">🧠</span>
+                            <i class="fa-solid fa-brain nav-icon"></i>
                             <span class="nav-label">RAG Pipeline</span>
                         </button>
                         <button class="nav-item" data-system="vector_database">
-                            <span class="nav-icon">💾</span>
+                            <i class="fa-solid fa-database nav-icon"></i>
                             <span class="nav-label">Vector Database</span>
                         </button>
                         <button class="nav-item" data-system="chat_gpt">
-                            <span class="nav-icon">🤖</span>
+                            <i class="fa-solid fa-robot nav-icon"></i>
                             <span class="nav-label">ChatGPT Core</span>
                         </button>
                         <button class="nav-item" data-system="ai_agent_framework">
-                            <span class="nav-icon">🤖</span>
+                            <i class="fa-solid fa-diagram-project nav-icon"></i>
                             <span class="nav-label">AI Agent Loop</span>
                         </button>
                         <button class="nav-item" data-system="llm_gateway">
-                            <span class="nav-icon">🌐</span>
+                            <i class="fa-solid fa-network-wired nav-icon"></i>
                             <span class="nav-label">LLM Gateway</span>
                         </button>
                         <button class="nav-item" data-system="semantic_search">
-                            <span class="nav-icon">🔍</span>
+                            <i class="fa-solid fa-magnifying-glass-chart nav-icon"></i>
                             <span class="nav-label">Semantic Search</span>
                         </button>
                         <button class="nav-item" data-system="token_streaming">
-                            <span class="nav-icon">⚡</span>
+                            <i class="fa-solid fa-bolt nav-icon"></i>
                             <span class="nav-label">Token Streaming</span>
                         </button>
                     </nav>
@@ -129,27 +131,27 @@
                     <h3>Level 8 – Distributed</h3>
                     <nav class="system-list">
                         <button class="nav-item" data-system="api_gateway">
-                            <span class="nav-icon">🚪</span>
+                            <i class="fa-solid fa-door-open nav-icon"></i>
                             <span class="nav-label">API Gateway</span>
                         </button>
                         <button class="nav-item" data-system="distributed_cache">
-                            <span class="nav-icon">⚡</span>
+                            <i class="fa-solid fa-bolt-lightning nav-icon"></i>
                             <span class="nav-label">Distributed Cache</span>
                         </button>
                         <button class="nav-item" data-system="distributed_lock">
-                            <span class="nav-icon">🔒</span>
+                            <i class="fa-solid fa-lock nav-icon"></i>
                             <span class="nav-label">Distributed Lock</span>
                         </button>
                         <button class="nav-item" data-system="distributed_queue">
-                            <span class="nav-icon">📥</span>
+                            <i class="fa-solid fa-tray-can nav-icon"></i>
                             <span class="nav-label">Distributed Queue</span>
                         </button>
                         <button class="nav-item" data-system="rate_limiter">
-                            <span class="nav-icon">🚦</span>
+                            <i class="fa-solid fa-traffic-light nav-icon"></i>
                             <span class="nav-label">Rate Limiter</span>
                         </button>
                         <button class="nav-item" data-system="circuit_breaker">
-                            <span class="nav-icon">⚡</span>
+                            <i class="fa-solid fa-toggle-on nav-icon"></i>
                             <span class="nav-label">Circuit Breaker</span>
                         </button>
                     </nav>
@@ -160,11 +162,11 @@
                     <h3>Level 10 – Search Systems</h3>
                     <nav class="system-list">
                         <button class="nav-item" data-system="spell_checker">
-                            <span class="nav-icon">🔤</span>
+                            <i class="fa-solid fa-spell-check nav-icon"></i>
                             <span class="nav-label">Spell Checker</span>
                         </button>
                         <button class="nav-item active" data-system="search_ranking">
-                            <span class="nav-icon">🎯</span>
+                            <i class="fa-solid fa-bullseye nav-icon"></i>
                             <span class="nav-label">Search Ranking</span>
                         </button>
                     </nav>
@@ -173,9 +175,9 @@
 
             <div class="sidebar-footer">
                 <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="btn secondary-btn chai-btn">
-                    <span>☕ Buy Me a Chai</span>
+                    <span><i class="fa-solid fa-mug-hot"></i> Buy Me a Chai</span>
                 </a>
-                <button id="simulate-btn" class="btn primary-btn">Pause Simulation</button>
+                <button id="simulate-btn" class="btn primary-btn"><i class="fa-solid fa-pause"></i> Pause Simulation</button>
             </div>
         </aside>
 
@@ -223,10 +225,10 @@
 
                         <!-- Floating Canvas Controls Toolbar -->
                         <div class="canvas-toolbar">
-                            <button id="btn-zoom-in" class="toolbar-btn" title="Zoom In (+)">➕</button>
-                            <button id="btn-zoom-out" class="toolbar-btn" title="Zoom Out (-)">➖</button>
-                            <button id="btn-reset-view" class="toolbar-btn" title="Reset Canvas (Esc)">🔄</button>
-                            <button id="btn-fullscreen" class="toolbar-btn" title="Toggle Fullscreen">⛶</button>
+                            <button id="btn-zoom-in" class="toolbar-btn" title="Zoom In (+)"><i class="fa-solid fa-magnifying-glass-plus"></i></button>
+                            <button id="btn-zoom-out" class="toolbar-btn" title="Zoom Out (-)"><i class="fa-solid fa-magnifying-glass-minus"></i></button>
+                            <button id="btn-reset-view" class="toolbar-btn" title="Reset Canvas (Esc)"><i class="fa-solid fa-rotate-left"></i></button>
+                            <button id="btn-fullscreen" class="toolbar-btn" title="Toggle Fullscreen"><i class="fa-solid fa-expand"></i></button>
                         </div>
                     </div>
 
@@ -237,10 +239,10 @@
                     <!-- Step Sequence Walkthrough Player Bar -->
                     <div class="step-player-bar">
                         <div class="step-controls">
-                            <button id="step-prev-btn" class="btn secondary-sm">◀ Prev</button>
+                            <button id="step-prev-btn" class="btn secondary-sm"><i class="fa-solid fa-chevron-left"></i> Prev</button>
                             <span id="step-counter" class="step-counter-badge">0 / 6</span>
-                            <button id="step-next-btn" class="btn secondary-sm">Next ▶</button>
-                            <button id="step-play-btn" class="btn primary-sm">Play Tour ▶️</button>
+                            <button id="step-next-btn" class="btn secondary-sm">Next <i class="fa-solid fa-chevron-right"></i></button>
+                            <button id="step-play-btn" class="btn primary-sm"><i class="fa-solid fa-play"></i> Play Tour</button>
                         </div>
                         <div class="step-info" id="step-banner">
                             <h4 id="step-title">Interactive Architecture Tour</h4>
@@ -279,14 +281,14 @@
                                     </div>
                                 </div>
                                 <div class="info-section doc-section">
-                                    <a id="system-doc-link" href="#" target="_blank" class="btn secondary-btn doc-link">View Full Markdown Blueprint ↗</a>
+                                    <a id="system-doc-link" href="#" target="_blank" class="btn secondary-btn doc-link">View Full Markdown Blueprint <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
                                 </div>
                             </div>
                         </div>
 
                         <div class="tab-content hidden" id="tab-payload">
                             <div class="code-header">
-                                <button class="copy-code-btn" data-copy-target="ins-payload">📋 Copy Payload JSON</button>
+                                <button class="copy-code-btn" data-copy-target="ins-payload"><i class="fa-regular fa-copy"></i> Copy Payload JSON</button>
                             </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-payload" class="language-json">{
@@ -297,7 +299,7 @@
 
                         <div class="tab-content hidden" id="tab-config">
                             <div class="code-header">
-                                <button class="copy-code-btn" data-copy-target="ins-config">📋 Copy Terraform HCL</button>
+                                <button class="copy-code-btn" data-copy-target="ins-config"><i class="fa-regular fa-copy"></i> Copy Terraform HCL</button>
                             </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-config" class="language-terraform"># Resource Configuration</code></pre>
