@@ -1830,6 +1830,96 @@ resource "aws_sagemaker_endpoint_configuration" "bert" {
             }
         }
     },
+    search_ranking: {
+        title: "Multi-Stage Search Ranking Engine",
+        description: "Multi-stage Learning-to-Rank (LTR) funnel processing 100k+ QPS at <50ms P99 latency: L1 Hybrid Retrieval (BM25 + Vector KNN) → L2 LightGBM Pre-Rank → L3 Deep Neural LTR → L4 MMR Diversity.",
+        docLink: "viewer.html?file=level_10_search_systems/search_ranking/search_ranking_system_design.md",
+        techStack: [
+            { service: "Amazon CloudFront & AWS API Gateway", role: "Edge ingress routing 100k+ QPS search queries, SSL termination, and WAF rate limiting." },
+            { service: "Amazon ECS Fargate (Search Orchestrator)", role: "Stateless containerized search ranker pods coordinating L1-L4 pipeline, feature hydration, and fallback execution." },
+            { service: "Amazon OpenSearch Service (L1 Retrieval)", role: "Multi-node OpenSearch cluster running hybrid BM25 sparse inverted index and KNN vector engine (HNSW)." },
+            { service: "Amazon ElastiCache for Redis & DynamoDB", role: "Low-latency dual feature store providing sub-2ms user profile features and high-throughput item catalog metadata." },
+            { service: "Amazon SageMaker (L3 Deep Neural Ranker)", role: "Multi-model real-time endpoints backed by GPU instances serving Two-Tower and Cross-Encoder LTR models (<20ms)." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "API Gateway & CloudFront",
+                category: "Edge Ingress",
+                description: "Handles query routing, SSL termination, and request authentication. Routes 100,000+ QPS to ECS Fargate ranker pods.",
+                payload: `{"request_id": "req_88a912c4", "user_id": "usr_9918234a", "query": "wireless noise cancelling headphones", "top_k": 20}`,
+                config: `resource "aws_api_gateway_rest_api" "search_ranking_api" {
+  name        = "search-ranking-api"
+  description = "Edge API Gateway for Search Ranking Engine"
+  endpoint_configuration {
+    types = ["REGIONAL"]
+  }
+}`
+            },
+            "proxy": {
+                name: "ECS Search Orchestrator Pods",
+                category: "Compute Engine",
+                description: "Coordinates 4-stage ranking funnel: L1 Recall -> L2 Pre-Rank -> L3 Deep Rank -> L4 Diversity. Manages sub-50ms latency budgets and model fallback hierarchy.",
+                payload: `{
+  "query": "wireless noise cancelling headphones",
+  "l1_candidates": 1000,
+  "l2_preranked": 100,
+  "l3_deep_ranked": 50,
+  "l4_returned": 20,
+  "latency_breakdown_ms": {"l1": 6.4, "feature": 3.8, "l2": 7.2, "l3": 16.5, "l4": 2.1, "total": 36.0}
+}`,
+                config: `resource "aws_ecs_service" "search_orchestrator" {
+  name            = "search-ranking-orchestrator"
+  cluster         = aws_ecs_cluster.search_cluster.id
+  task_definition = aws_ecs_task_definition.search_orchestrator.arn
+  desired_count   = 50
+  launch_type     = "FARGATE"
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis & DynamoDB",
+                category: "Feature Store",
+                description: "Dual feature store. Redis caches real-time user profiles and 1-hour CTR stats (<2ms). DynamoDB holds 10B item catalog metadata and static features.",
+                payload: `HMGET usr:usr_9918234a:profile avg_purchase_price preferred_category
+→ ["250.00", "cat_audio_102"] (Latency: 1.2ms)`,
+                config: `resource "aws_elasticache_replication_group" "feature_cache" {
+  replication_group_id = "search-ranking-feature-cache"
+  node_type            = "cache.r6g.xlarge"
+  num_node_groups      = 4
+  replicas_per_node_group = 1
+}`
+            },
+            "db": {
+                name: "Amazon OpenSearch Service (L1)",
+                category: "Hybrid Search Index",
+                description: "Runs hybrid candidate retrieval over 10 Billion items using BM25 sparse keyword index and HNSW vector KNN search merged via Reciprocal Rank Fusion (RRF).",
+                payload: `POST /catalog_items/_search
+{"size": 1000, "query": {"hybrid": [{"match": {"title": "wireless headphones"}}, {"knn": {"vector_embedding": {"vector": [...], "k": 1000}}}]}}`,
+                config: `resource "aws_opensearch_domain" "catalog_search" {
+  domain_name    = "catalog-search-index"
+  engine_version = "OpenSearch_2.11"
+  cluster_config {
+    instance_type  = "r6g.2xlarge.search"
+    instance_count = 12
+  }
+}`
+            },
+            "sagemaker": {
+                name: "SageMaker L3 Deep Ranker",
+                category: "AI/ML Inference",
+                description: "NVIDIA TensorRT accelerated real-time endpoints serving multi-task Two-Tower and Transformer Cross-Encoder models predicting pCTR, pCVR, and long click probability.",
+                payload: `{
+  "item_id": "itm_headphone_901",
+  "predictions": {"p_ctr": 0.185, "p_cvr": 0.042, "p_long_click": 0.720},
+  "utility_score": 0.9421,
+  "inference_latency_ms": 16.5
+}`,
+                config: `resource "aws_sagemaker_endpoint" "l3_deep_ranker" {
+  name                 = "search-l3-deep-ranker-endpoint"
+  endpoint_config_name = aws_sagemaker_endpoint_configuration.l3_config.name
+}`
+            }
+        }
+    },
     circuit_breaker: {
         title: "Distributed Circuit Breaker System",
         description: "3-State FSM (CLOSED → OPEN → HALF-OPEN) with sliding window failure counters, bulkhead isolation, and Envoy sidecar deployment at 1M RPS.",
@@ -2915,6 +3005,76 @@ function renderSVG() {
                 <text x="50" y="36" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Ranked</text>
                 <text x="50" y="54" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Suggestions</text>
                 <text x="50" y="72" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">≤ 50ms P99</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "search_ranking") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- VPC Box -->
+            <rect x="160" y="60" width="610" height="360" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="180" y="88" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">Multi-Stage Search Ranking Engine Pipeline</text>
+
+            <!-- Connections (static) -->
+            <path d="M100 230 L180 230" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M330 230 L420 150" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M330 230 L420 310" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M570 150 L640 230" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M570 310 L640 230" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <!-- Neon Flow Lines -->
+            <path class="data-flow-line" d="M100 230 L180 230" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M330 230 L420 150" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M330 230 L420 310" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M570 150 L640 230" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M570 310 L640 230" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <!-- Ingress: API Gateway -->
+            <g class="interactive-node" id="ingress" transform="translate(20, 185)">
+                <rect x="0" y="0" width="80" height="90" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="36" font-family="Outfit" font-size="10" fill="#ff9800" font-weight="700" text-anchor="middle">API Gateway</text>
+                <text x="40" y="52" font-family="Outfit" font-size="10" fill="#f3f4f6" text-anchor="middle">+ CloudFront</text>
+                <text x="40" y="70" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">100k+ QPS</text>
+            </g>
+
+            <!-- ECS Search Orchestrator -->
+            <g class="interactive-node" id="proxy" transform="translate(180, 130)">
+                <rect x="0" y="0" width="150" height="200" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="75" y="28" font-family="Outfit" font-size="11" fill="#3b82f6" font-weight="700" text-anchor="middle">Ranker Orchestrator</text>
+                <text x="75" y="50" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🔍 L1: Recall (1000)</text>
+                <text x="75" y="70" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">⚡ L2: Pre-Rank (100)</text>
+                <text x="75" y="90" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🧠 L3: Deep Rank (50)</text>
+                <text x="75" y="110" font-family="Outfit" font-size="9" fill="#9ca3af" text-anchor="middle">🎯 L4: MMR Diversity (20)</text>
+                <rect x="15" y="125" width="120" height="60" rx="6" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1" />
+                <text x="75" y="145" font-family="Outfit" font-size="9" fill="#60a5fa" text-anchor="middle">ECS Fargate</text>
+                <text x="75" y="160" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Sub-50ms P99</text>
+                <text x="75" y="175" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Fallback Hierarchy</text>
+            </g>
+
+            <!-- OpenSearch L1 Hybrid Index -->
+            <g class="interactive-node" id="db" transform="translate(420, 105)">
+                <rect x="0" y="0" width="150" height="90" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="75" y="30" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Amazon OpenSearch</text>
+                <text x="75" y="48" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">BM25 + Vector KNN</text>
+                <text x="75" y="64" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Reciprocal Rank Fusion</text>
+                <text x="75" y="78" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">10B Items Catalog</text>
+            </g>
+
+            <!-- Feature Store: Redis + DynamoDB -->
+            <g class="interactive-node" id="redis" transform="translate(420, 265)">
+                <rect x="0" y="0" width="150" height="90" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="75" y="30" font-family="Outfit" font-size="11" fill="#ab47bc" font-weight="700" text-anchor="middle">Redis &amp; DynamoDB</text>
+                <text x="75" y="48" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">Dual Feature Store</text>
+                <text x="75" y="64" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">User Profiles (&lt;2ms)</text>
+                <text x="75" y="78" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">10B Item Metadata</text>
+            </g>
+
+            <!-- SageMaker L3 Model Endpoint -->
+            <g class="interactive-node" id="sagemaker" transform="translate(640, 185)">
+                <rect x="0" y="0" width="115" height="90" rx="10" fill="#111827" stroke="#38bdf8" stroke-width="2" />
+                <text x="57" y="30" font-family="Outfit" font-size="11" fill="#38bdf8" font-weight="700" text-anchor="middle">SageMaker L3</text>
+                <text x="57" y="48" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">Deep Neural Ranker</text>
+                <text x="57" y="64" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Two-Tower &amp; X-Enc</text>
+                <text x="57" y="78" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">pCTR / pCVR MTL</text>
             </g>
         </svg>`;
     } else if (currentSystem === "circuit_breaker") {

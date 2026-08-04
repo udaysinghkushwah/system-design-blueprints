@@ -52,6 +52,7 @@ We have built a premium, interactive web dashboard to explore all 24 completed d
     - [⚡ Circuit Breaker System Design](#86-circuit-breaker-system-design)
   - **Level 10 – Search Systems**
     - [🔤 Spell Checker System Design](#101-spell-checker-system-design)
+    - [🎯 Search Ranking System Design](#102-search-ranking-system-design)
 - [☕ Support](#-support)
 
 ## 🗺️ System Design Roadmap
@@ -199,7 +200,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 2 | Search Autocomplete | ⬜ Planned |
 | 3 | Spell Checker | ✅ [Blueprint](./level_10_search_systems/spell_checker/spell_checker_system_design.md) |
 | 4 | Web Crawler | ⬜ Planned |
-| 5 | Search Ranking | ⬜ Planned |
+| 5 | Search Ranking | ✅ [Blueprint](./level_10_search_systems/search_ranking/search_ranking_system_design.md) |
 
 ---
 
@@ -295,14 +296,14 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
 | 8 | Distributed Systems | 10 | 6 | ✅✅✅✅✅✅⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
-| 10 | Search Systems | 5 | 1 | ✅⬜⬜⬜⬜ |
+| 10 | Search Systems | 5 | 2 | ✅✅⬜⬜⬜ |
 | 11 | Financial Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 12 | Cloud Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 13 | Notification Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **24** | **22.2%** |
+| | **Total** | **108** | **25** | **23.1%** |
 
 ---
 
@@ -1021,6 +1022,34 @@ Multi-region active-active AWS deployment: Route 53 latency routing → CloudFro
 
 ![AWS Cloud-Native Spell Checker Architecture](./level_10_search_systems/spell_checker/spell_checker_aws_architecture.png)
 
+<a id="102-search-ranking-system-design"></a>
+#### 10.2 Search Ranking System Design
+A production-grade, ultra-low latency, multi-stage **Search Ranking Engine** and **Learning-to-Rank (LTR)** platform processing **100,000+ QPS** at **< 50ms P99 latency** across **10B catalog items** and **500M DAU**. Features 4-stage funnel retrieval (L1 Hybrid BM25 + Vector KNN → L2 LightGBM pre-ranking → L3 Deep Neural Multi-Task LTR → L4 MMR diversity filtering), low-latency dual feature stores (Redis + DynamoDB), and AWS cloud-native active-active deployment.
+
+* **Documentation:** [Search Ranking System Design (search_ranking_system_design.md)](./level_10_search_systems/search_ranking/search_ranking_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (search_ranking_api_spec.yaml)](./level_10_search_systems/search_ranking/search_ranking_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_10_search_systems/search_ranking/mock_server.py) (run using `python3 level_10_search_systems/search_ranking/mock_server.py`)
+
+#### Search Ranking Tech Stack Details (with AWS Service Mapping)
+* **Amazon CloudFront + AWS API Gateway:** Edge ingress routing 100,000+ QPS search requests, SSL termination, and WAF rate limiting for high-concurrency protection.
+* **Amazon ECS Fargate (Search Orchestrator):** Stateless containerized search ranker pods coordinating L1 candidate recall, feature hydration, L2/L3 model inference calls, and L4 MMR diversity filtering within sub-50ms budgets.
+* **Amazon OpenSearch Service (L1 Retrieval):** 12-node OpenSearch cluster powering hybrid sparse BM25 inverted indexing and dense HNSW vector KNN search merged via Reciprocal Rank Fusion (RRF).
+* **Amazon ElastiCache for Redis & DynamoDB:** Low-latency dual feature store providing sub-2ms user profile features and high-throughput item catalog metadata.
+* **Amazon SageMaker (L3 Deep Neural Ranker):** NVIDIA TensorRT accelerated real-time endpoints serving multi-task Two-Tower and Transformer Cross-Encoder models predicting pCTR, pCVR, and long click probability (< 20ms).
+* **Amazon MSK (Kafka):** Asynchronous log streaming pipeline ingesting impression snapshots, click events, and conversion feedback for continuous model retraining.
+
+#### Search Ranking Architecture Diagrams
+
+##### A. High-Level System Architecture
+Four-stage funnel design: Client Ingress → ECS Search Ranking Orchestrator → Feature Store (Redis + DynamoDB) & L1 OpenSearch Hybrid Recall → L2 LightGBM Pre-Ranker → L3 Deep Neural Re-Ranker → L4 MMR Diversity & Sponsored Blending → MSK Streaming Feedback.
+
+![Search Ranking System Architecture](./level_10_search_systems/search_ranking/search_ranking_system_architecture.png)
+
+##### B. AWS Cloud-Native Search Ranking Architecture
+Multi-region active-active deployment: Route 53 latency routing → CloudFront/WAF → API Gateway → ECS Fargate Search Ranking Orchestrator → ElastiCache Redis & DynamoDB → Amazon OpenSearch cluster → SageMaker L3 real-time inference endpoints + MSK Kafka feedback streaming pipeline.
+
+![AWS Cloud-Native Search Ranking Architecture](./level_10_search_systems/search_ranking/search_ranking_aws_architecture.png)
+
 ---
 
 ## ☕ Support
@@ -1037,4 +1066,4 @@ If you find these system design blueprints helpful, support my work by buying me
 
 ---
 
-*Updated on 2026-08-04*
+*Updated on 2026-08-05*

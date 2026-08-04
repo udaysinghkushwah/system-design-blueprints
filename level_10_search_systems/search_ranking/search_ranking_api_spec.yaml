@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Search Ranking & Learning-to-Rank (LTR) API Spec
+  description: |
+    Production-grade OpenAPI 3.0 specification for the Multi-Stage Search Ranking Engine.
+    Handles real-time search queries, multi-stage retrieval & re-ranking, feature hydration,
+    diversity filtering (MMR), and user interaction log streaming.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8095/v1
+    description: Local Mock Search Ranking Server
+  - url: https://search-ranking.api.systemdesign.blueprints/v1
+    description: Production Multi-Region API Gateway Endpoint
+
+paths:
+  /search/rank:
+    post:
+      summary: Execute Multi-Stage Search Ranking Pipeline
+      description: |
+        Processes a search query through L1 retrieval (BM25 + Vector KNN), L2 Light pre-ranking (LightGBM),
+        L3 Heavy deep neural re-ranking, and L4 MMR diversity filtering.
+      operationId: executeSearchRanking
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRankingRequest'
+      responses:
+        '200':
+          description: Search ranking results successfully generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchRankingResponse'
+        '400':
+          $ref: '#/components/responses/400BadRequest'
+        '429':
+          $ref: '#/components/responses/429TooManyRequests'
+        '500':
+          $ref: '#/components/responses/500InternalServerError'
+
+  /features/user/{user_id}:
+    get:
+      summary: Fetch Real-Time User Profile & Interaction Features
+      description: Retrieves low-latency cached user features from Redis feature store.
+      operationId: getUserFeatures
+      parameters:
+        - name: user_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: usr_9918234a
+      responses:
+        '200':
+          description: User features retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserFeaturesResponse'
+        '404':
+          $ref: '#/components/responses/404NotFound'
+
+  /ranking/feedback:
+    post:
+      summary: Ingest Real-Time User Feedback Events
+      description: Asynchronously streams user click, impression, and conversion feedback events into MSK Kafka.
+      operationId: logRankingFeedback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RankingFeedbackEvent'
+      responses:
+        '202':
+          description: Feedback event accepted for streaming ingestion.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ACCEPTED
+                  event_id:
+                    type: string
+                    example: evt_7728190c
+
+  /health:
+    get:
+      summary: System Health & Model Endpoint Status
+      description: Returns health status of ranking orchestrator and downstream inference endpoints.
+      operationId: getHealthStatus
+      responses:
+        '200':
+          description: System is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthCheckResponse'
+
+components:
+  schemas:
+    SearchRankingRequest:
+      type: object
+      required:
+        - request_id
+        - user_id
+        - query
+      properties:
+        request_id:
+          type: string
+          example: req_88a912c4-001a
+        user_id:
+          type: string
+          example: usr_9918234a
+        query:
+          type: string
+          example: wireless noise cancelling headphones
+        search_context:
+          $ref: '#/components/schemas/SearchContext'
+        top_k:
+          type: integer
+          default: 20
+          example: 20
+        enable_diversity:
+          type: boolean
+          default: true
+        diversity_lambda:
+          type: number
+          format: float
+          default: 0.75
+          example: 0.75
+        filter_category_id:
+          type: string
+          example: cat_audio_102
+
+    SearchContext:
+      type: object
+      properties:
+        device_category:
+          type: string
+          example: mobile_ios
+        country_code:
+          type: string
+          example: US
+        user_latitude:
+          type: number
+          format: double
+          example: 37.7749
+        user_longitude:
+          type: number
+          format: double
+          example: -122.4194
+        session_depth:
+          type: integer
+          example: 3
+
+    SearchRankingResponse:
+      type: object
+      required:
+        - request_id
+        - query
+        - total_retrieved
+        - total_returned
+        - latency_breakdown_ms
+        - served_model_version
+        - ranked_items
+      properties:
+        request_id:
+          type: string
+          example: req_88a912c4-001a
+        query:
+          type: string
+          example: wireless noise cancelling headphones
+        total_retrieved:
+          type: integer
+          example: 1000
+        total_returned:
+          type: integer
+          example: 20
+        latency_breakdown_ms:
+          $ref: '#/components/schemas/LatencyBreakdown'
+        served_model_version:
+          type: string
+          example: l3_transformer_v2.4
+        ranked_items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RankedItem'
+
+    LatencyBreakdown:
+      type: object
+      properties:
+        l1_retrieval:
+          type: number
+          format: float
+          example: 6.4
+        feature_hydration:
+          type: number
+          format: float
+          example: 3.8
+        l2_pre_rank:
+          type: number
+          format: float
+          example: 7.2
+        l3_deep_rank:
+          type: number
+          format: float
+          example: 16.5
+        l4_diversity:
+          type: number
+          format: float
+          example: 2.1
+        total_end_to_end:
+          type: number
+          format: float
+          example: 36.0
+
+    RankedItem:
+      type: object
+      required:
+        - rank
+        - item_id
+        - title
+        - category_id
+        - price
+        - relevance_score
+        - predictions
+      properties:
+        rank:
+          type: integer
+          example: 1
+        item_id:
+          type: string
+          example: itm_headphone_901
+        title:
+          type: string
+          example: Sony WH-1000XM5 Wireless Headphones
+        category_id:
+          type: string
+          example: cat_audio_102
+        price:
+          type: number
+          format: double
+          example: 398.00
+        relevance_score:
+          type: number
+          format: float
+          example: 0.9421
+        predictions:
+          type: object
+          properties:
+            p_ctr:
+              type: number
+              format: float
+              example: 0.185
+            p_cvr:
+              type: number
+              format: float
+              example: 0.042
+            p_long_click:
+              type: number
+              format: float
+              example: 0.720
+        is_sponsored:
+          type: boolean
+          example: false
+
+    UserFeaturesResponse:
+      type: object
+      properties:
+        user_id:
+          type: string
+          example: usr_9918234a
+        avg_purchase_price:
+          type: number
+          format: double
+          example: 250.00
+        preferred_category:
+          type: string
+          example: cat_audio_102
+        recent_search_terms:
+          type: array
+          items:
+            type: string
+          example: ["wireless headphones", "bluetooth speaker"]
+        account_tier:
+          type: string
+          example: PRIME_GOLD
+
+    RankingFeedbackEvent:
+      type: object
+      required:
+        - request_id
+        - user_id
+        - item_id
+        - event_type
+      properties:
+        request_id:
+          type: string
+          example: req_88a912c4-001a
+        user_id:
+          type: string
+          example: usr_9918234a
+        item_id:
+          type: string
+          example: itm_headphone_901
+        event_type:
+          type: string
+          enum: [IMPRESSION, CLICK, ADD_TO_CART, PURCHASE, RETURN]
+          example: CLICK
+        timestamp:
+          type: integer
+          example: 1785869000
+
+    HealthCheckResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: UP
+        active_models:
+          type: object
+          properties:
+            l2_pre_rank:
+              type: string
+              example: lightgbm_v1.8
+            l3_deep_rank:
+              type: string
+              example: transformer_v2.4
+        feature_store_latency_ms:
+          type: number
+          example: 1.2
+
+  responses:
+    400BadRequest:
+      description: Invalid request parameters or query schema.
+    404NotFound:
+      description: Resource or user profile not found.
+    429TooManyRequests:
+      description: Rate limit quota exceeded.
+    500InternalServerError:
+      description: Ranking pipeline execution error.
