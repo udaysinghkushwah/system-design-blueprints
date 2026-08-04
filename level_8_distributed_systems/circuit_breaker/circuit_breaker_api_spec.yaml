@@ -1,0 +1,690 @@
+openapi: 3.0.3
+info:
+  title: Circuit Breaker Control Plane API
+  description: |
+    REST API for the Distributed Circuit Breaker Control Plane.
+    Supports querying circuit states, manual trip/reset operations,
+    dynamic configuration updates, and per-service metrics retrieval.
+    Manages 50,000+ unique service–dependency circuit breaker instances.
+  version: 1.0.0
+  contact:
+    name: System Design Blueprints
+    url: https://github.com/udaysinghkushwah/system-design-blueprints
+
+servers:
+  - url: https://api.circuitbreaker.example.com/v1
+    description: Production Control Plane
+  - url: http://localhost:8094/v1
+    description: Local Mock Server
+
+tags:
+  - name: circuits
+    description: Circuit state queries and operations
+  - name: config
+    description: Dynamic circuit configuration management
+  - name: metrics
+    description: Per-circuit metrics and analytics
+  - name: health
+    description: Health and readiness probes
+
+paths:
+
+  /circuits:
+    get:
+      tags: [circuits]
+      operationId: listCircuits
+      summary: List all circuit breaker states
+      description: Returns all registered circuit breaker instances with their current states. Supports filtering by service, dependency, or state.
+      parameters:
+        - name: service_id
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "order-service"
+        - name: dependency_id
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "payment-service"
+        - name: state
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [CLOSED, OPEN, HALF_OPEN]
+          example: "OPEN"
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: page_size
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+            maximum: 200
+      responses:
+        '200':
+          description: List of circuit breaker states
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CircuitListResponse'
+              example:
+                circuits:
+                  - service_id: "order-service"
+                    dependency_id: "payment-service"
+                    state: "OPEN"
+                    failure_rate: 67.3
+                    rejected_calls: 2340
+                    last_transition: "2026-08-03T16:45:00Z"
+                  - service_id: "order-service"
+                    dependency_id: "inventory-service"
+                    state: "CLOSED"
+                    failure_rate: 2.1
+                    rejected_calls: 0
+                    last_transition: "2026-08-03T12:00:00Z"
+                total: 2
+                page: 1
+                page_size: 50
+
+  /circuits/{service_id}/{dependency_id}:
+    get:
+      tags: [circuits]
+      operationId: getCircuitState
+      summary: Get circuit breaker state for a specific service–dependency pair
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+      responses:
+        '200':
+          description: Full circuit breaker state and configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CircuitDetail'
+              example:
+                service_id: "order-service"
+                dependency_id: "payment-service"
+                state: "OPEN"
+                failure_rate: 67.3
+                slow_call_rate: 12.1
+                total_calls: 150
+                failed_calls: 101
+                rejected_calls: 2340
+                last_transition: "2026-08-03T16:45:00Z"
+                wait_duration_remaining_ms: 45000
+                config:
+                  failure_rate_threshold: 50.0
+                  slow_call_rate_threshold: 100.0
+                  slow_call_duration_ms: 2000
+                  window_type: "COUNT"
+                  window_size: 100
+                  minimum_number_of_calls: 10
+                  wait_duration_open_ms: 60000
+                  permitted_calls_half_open: 5
+                  max_concurrent_calls: 25
+                  fallback_strategy: "CACHE"
+                  is_enabled: true
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /circuits/{service_id}/{dependency_id}/trip:
+    post:
+      tags: [circuits]
+      operationId: tripCircuit
+      summary: Manually force circuit breaker to OPEN state
+      description: |
+        Operator-initiated emergency trip. Forces the circuit breaker to OPEN
+        immediately, blocking all traffic to the dependency. Useful when a
+        downstream service is known to be degraded before thresholds are hit.
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Human-readable reason for the manual trip
+                  example: "payment-service DB migration in progress"
+                operator:
+                  type: string
+                  description: Identity of the operator triggering the trip
+                  example: "ops-team@example.com"
+      responses:
+        '200':
+          description: Circuit tripped to OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateTransitionResponse'
+              example:
+                circuit_id: "order-service:payment-service"
+                previous_state: "CLOSED"
+                new_state: "OPEN"
+                triggered_by: "manual"
+                operator: "ops-team@example.com"
+                reason: "payment-service DB migration in progress"
+                transitioned_at: "2026-08-03T17:00:00Z"
+        '409':
+          description: Circuit already OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /circuits/{service_id}/{dependency_id}/reset:
+    post:
+      tags: [circuits]
+      operationId: resetCircuit
+      summary: Manually reset circuit breaker to CLOSED state
+      description: |
+        Operator-initiated reset. Forces the circuit breaker back to CLOSED,
+        resuming normal traffic flow. Used after confirming a downstream
+        service has recovered.
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "payment-service DB migration complete, service healthy"
+                operator:
+                  type: string
+                  example: "ops-team@example.com"
+      responses:
+        '200':
+          description: Circuit reset to CLOSED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StateTransitionResponse'
+              example:
+                circuit_id: "order-service:payment-service"
+                previous_state: "OPEN"
+                new_state: "CLOSED"
+                triggered_by: "manual"
+                operator: "ops-team@example.com"
+                transitioned_at: "2026-08-03T17:30:00Z"
+
+  /circuits/{service_id}/{dependency_id}/config:
+    get:
+      tags: [config]
+      operationId: getCircuitConfig
+      summary: Get circuit breaker configuration
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+      responses:
+        '200':
+          description: Current circuit configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CircuitConfig'
+
+    put:
+      tags: [config]
+      operationId: updateCircuitConfig
+      summary: Update circuit breaker configuration (hot-reload, no restart required)
+      description: |
+        Updates circuit breaker configuration and publishes change event to
+        Redis Pub/Sub channel `cb:config-updates`. All sidecar pods receive
+        the config update within < 200ms via Pub/Sub subscription.
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CircuitConfigUpdate'
+            example:
+              failure_rate_threshold: 40.0
+              slow_call_duration_ms: 1500
+              wait_duration_open_ms: 30000
+              permitted_calls_half_open: 3
+      responses:
+        '200':
+          description: Configuration updated and propagated to all pods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  circuit_id:
+                    type: string
+                  config:
+                    $ref: '#/components/schemas/CircuitConfig'
+                  propagation_ms:
+                    type: integer
+                    description: Estimated propagation time to all pods
+              example:
+                circuit_id: "order-service:payment-service"
+                propagation_ms: 150
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /circuits/{service_id}/{dependency_id}/metrics:
+    get:
+      tags: [metrics]
+      operationId: getCircuitMetrics
+      summary: Get per-circuit metrics for a time window
+      parameters:
+        - $ref: '#/components/parameters/ServiceId'
+        - $ref: '#/components/parameters/DependencyId'
+        - name: window
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ["1m", "5m", "15m", "1h", "24h"]
+            default: "5m"
+          description: Time window for metrics aggregation
+      responses:
+        '200':
+          description: Aggregated circuit metrics for the requested window
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CircuitMetrics'
+              example:
+                service_id: "order-service"
+                dependency_id: "payment-service"
+                window: "5m"
+                metrics:
+                  total_calls: 6000
+                  successful_calls: 5880
+                  failed_calls: 120
+                  rejected_calls: 3400
+                  slow_calls: 45
+                  failure_rate_pct: 2.0
+                  slow_call_rate_pct: 0.75
+                  avg_duration_ms: 142
+                  p99_duration_ms: 1823
+                  state_transitions:
+                    - from: "CLOSED"
+                      to: "OPEN"
+                      at: "2026-08-03T16:40:00Z"
+                      reason: "failure_rate=67.3%"
+                    - from: "OPEN"
+                      to: "HALF_OPEN"
+                      at: "2026-08-03T16:41:00Z"
+                      reason: "wait_duration_elapsed"
+                    - from: "HALF_OPEN"
+                      to: "CLOSED"
+                      at: "2026-08-03T16:41:30Z"
+                      reason: "probe_failure_rate=0.0% (service recovered)"
+
+  /circuits/summary:
+    get:
+      tags: [metrics]
+      operationId: getSystemSummary
+      summary: Get system-wide circuit breaker health summary
+      responses:
+        '200':
+          description: Aggregated circuit breaker health across all services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total_circuits:
+                    type: integer
+                  open_circuits:
+                    type: integer
+                  half_open_circuits:
+                    type: integer
+                  closed_circuits:
+                    type: integer
+                  total_rejected_calls_last_minute:
+                    type: integer
+                  health_score_pct:
+                    type: number
+                    description: Percentage of circuits in CLOSED state
+              example:
+                total_circuits: 50000
+                open_circuits: 3
+                half_open_circuits: 1
+                closed_circuits: 49996
+                total_rejected_calls_last_minute: 8240
+                health_score_pct: 99.99
+
+  /health/live:
+    get:
+      tags: [health]
+      operationId: livenessCheck
+      summary: Liveness probe
+      responses:
+        '200':
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: readinessCheck
+      summary: Readiness probe — checks Redis connection and Aurora connectivity
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [ready, degraded]
+                  redis_connected:
+                    type: boolean
+                  aurora_connected:
+                    type: boolean
+                  circuits_loaded:
+                    type: integer
+              example:
+                status: "ready"
+                redis_connected: true
+                aurora_connected: true
+                circuits_loaded: 50000
+        '503':
+          description: Service not ready
+
+components:
+  parameters:
+    ServiceId:
+      name: service_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "order-service"
+    DependencyId:
+      name: dependency_id
+      in: path
+      required: true
+      schema:
+        type: string
+      example: "payment-service"
+
+  schemas:
+    CircuitState:
+      type: string
+      enum: [CLOSED, OPEN, HALF_OPEN]
+
+    CircuitSummary:
+      type: object
+      properties:
+        service_id:
+          type: string
+        dependency_id:
+          type: string
+        state:
+          $ref: '#/components/schemas/CircuitState'
+        failure_rate:
+          type: number
+          format: float
+        rejected_calls:
+          type: integer
+        last_transition:
+          type: string
+          format: date-time
+
+    CircuitDetail:
+      type: object
+      properties:
+        service_id:
+          type: string
+        dependency_id:
+          type: string
+        state:
+          $ref: '#/components/schemas/CircuitState'
+        failure_rate:
+          type: number
+          format: float
+        slow_call_rate:
+          type: number
+          format: float
+        total_calls:
+          type: integer
+        failed_calls:
+          type: integer
+        rejected_calls:
+          type: integer
+        last_transition:
+          type: string
+          format: date-time
+        wait_duration_remaining_ms:
+          type: integer
+          nullable: true
+          description: Time remaining in OPEN state before transitioning to HALF-OPEN
+        config:
+          $ref: '#/components/schemas/CircuitConfig'
+
+    CircuitConfig:
+      type: object
+      properties:
+        failure_rate_threshold:
+          type: number
+          format: float
+          default: 50.0
+          description: Failure rate percentage at which circuit trips to OPEN
+        slow_call_rate_threshold:
+          type: number
+          format: float
+          default: 100.0
+        slow_call_duration_ms:
+          type: integer
+          default: 2000
+          description: Duration threshold for classifying a call as "slow"
+        window_type:
+          type: string
+          enum: [COUNT, TIME]
+          default: COUNT
+        window_size:
+          type: integer
+          default: 100
+          description: N calls (COUNT) or T seconds (TIME)
+        minimum_number_of_calls:
+          type: integer
+          default: 10
+        wait_duration_open_ms:
+          type: integer
+          default: 60000
+        permitted_calls_half_open:
+          type: integer
+          default: 5
+        max_concurrent_calls:
+          type: integer
+          default: 25
+        fallback_strategy:
+          type: string
+          enum: [CACHE, STUB, ERROR]
+          default: CACHE
+        is_enabled:
+          type: boolean
+          default: true
+
+    CircuitConfigUpdate:
+      type: object
+      description: Partial config update — only provided fields will be changed
+      properties:
+        failure_rate_threshold:
+          type: number
+          format: float
+        slow_call_rate_threshold:
+          type: number
+          format: float
+        slow_call_duration_ms:
+          type: integer
+        window_type:
+          type: string
+          enum: [COUNT, TIME]
+        window_size:
+          type: integer
+        minimum_number_of_calls:
+          type: integer
+        wait_duration_open_ms:
+          type: integer
+        permitted_calls_half_open:
+          type: integer
+        max_concurrent_calls:
+          type: integer
+        fallback_strategy:
+          type: string
+          enum: [CACHE, STUB, ERROR]
+        is_enabled:
+          type: boolean
+
+    CircuitListResponse:
+      type: object
+      properties:
+        circuits:
+          type: array
+          items:
+            $ref: '#/components/schemas/CircuitSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    StateTransitionResponse:
+      type: object
+      properties:
+        circuit_id:
+          type: string
+        previous_state:
+          $ref: '#/components/schemas/CircuitState'
+        new_state:
+          $ref: '#/components/schemas/CircuitState'
+        triggered_by:
+          type: string
+          enum: [manual, automatic]
+        operator:
+          type: string
+          nullable: true
+        reason:
+          type: string
+          nullable: true
+        transitioned_at:
+          type: string
+          format: date-time
+
+    CircuitMetrics:
+      type: object
+      properties:
+        service_id:
+          type: string
+        dependency_id:
+          type: string
+        window:
+          type: string
+        metrics:
+          type: object
+          properties:
+            total_calls:
+              type: integer
+            successful_calls:
+              type: integer
+            failed_calls:
+              type: integer
+            rejected_calls:
+              type: integer
+            slow_calls:
+              type: integer
+            failure_rate_pct:
+              type: number
+            slow_call_rate_pct:
+              type: number
+            avg_duration_ms:
+              type: number
+            p99_duration_ms:
+              type: number
+            state_transitions:
+              type: array
+              items:
+                type: object
+                properties:
+                  from:
+                    type: string
+                  to:
+                    type: string
+                  at:
+                    type: string
+                    format: date-time
+                  reason:
+                    type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        request_id:
+          type: string
+
+  responses:
+    NotFound:
+      description: Circuit not found for the given service–dependency pair
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: "NOT_FOUND"
+            message: "No circuit breaker registered for order-service → unknown-service"
+            request_id: "req_abc123"
+    BadRequest:
+      description: Invalid request parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []

@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 23 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 24 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -49,6 +49,7 @@ We have built a premium, interactive web dashboard to explore all 23 completed d
     - [📥 Distributed Queue System Design](#83-distributed-queue-system-design)
     - [🌐 API Gateway System Design](#84-api-gateway-system-design)
     - [🚦 Rate Limiter System Design](#85-rate-limiter-system-design)
+    - [⚡ Circuit Breaker System Design](#86-circuit-breaker-system-design)
   - **Level 10 – Search Systems**
     - [🔤 Spell Checker System Design](#101-spell-checker-system-design)
 - [☕ Support](#-support)
@@ -170,7 +171,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 4 | API Gateway | ✅ [Blueprint](./level_8_distributed_systems/api_gateway/api_gateway_system_design.md) |
 | 5 | Service Discovery | ⬜ Planned |
 | 6 | Rate Limiter | ✅ [Blueprint](./level_8_distributed_systems/rate_limiter/rate_limiter_system_design.md) |
-| 7 | Circuit Breaker | ⬜ Planned |
+| 7 | Circuit Breaker | ✅ [Blueprint](./level_8_distributed_systems/circuit_breaker/circuit_breaker_system_design.md) |
 | 8 | Saga Pattern | ⬜ Planned |
 | 9 | CQRS | ⬜ Planned |
 | 10 | Event Sourcing | ⬜ Planned |
@@ -292,7 +293,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
-| 8 | Distributed Systems | 10 | 5 | ✅✅✅✅✅⬜⬜⬜⬜⬜ |
+| 8 | Distributed Systems | 10 | 6 | ✅✅✅✅✅✅⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
 | 10 | Search Systems | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 11 | Financial Systems | 5 | 0 | ⬜⬜⬜⬜⬜ |
@@ -301,7 +302,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **23** | **21.3%** |
+| | **Total** | **108** | **24** | **22.2%** |
 
 ---
 
@@ -958,7 +959,39 @@ Cloud-native layout showing Route 53, CloudFront/WAF, API Gateway, ECS Fargate E
 
 ---
 
+### 8.6 Circuit Breaker System Design
+
+<a id="86-circuit-breaker-system-design"></a>
+#### 8.6 Circuit Breaker System Design
+A production-grade **Distributed Circuit Breaker** implementing the 3-state Finite State Machine (CLOSED → OPEN → HALF-OPEN) for cascading failure prevention across 10,000+ microservice instances at **1M RPS**. Combines count-based and time-based sliding window failure counters, slow-call detection, bulkhead concurrency isolation (semaphore + thread-pool), and an Envoy sidecar deployment pattern with centralized Redis state sharing and < 1ms check latency.
+
+* **Documentation:** [Circuit Breaker System Design (circuit_breaker_system_design.md)](./level_8_distributed_systems/circuit_breaker/circuit_breaker_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (circuit_breaker_api_spec.yaml)](./level_8_distributed_systems/circuit_breaker/circuit_breaker_api_spec.yaml)
+* **Local Mock API Server:** [Mock Control Plane Server (mock_server.py)](./level_8_distributed_systems/circuit_breaker/mock_server.py) (run using `python3 level_8_distributed_systems/circuit_breaker/mock_server.py`)
+
+#### Circuit Breaker Tech Stack Details (with AWS Service Mapping)
+* **Envoy Proxy Sidecar (ECS Fargate):** Implements `circuit_breakers` and `outlier_detection` filters alongside every microservice task. Adds < 0.1ms overhead. Maintains local in-process FSM state backed by Redis for cross-pod consistency.
+* **Amazon ElastiCache for Redis Global Datastore:** 6-shard cluster (cache.r6g.2xlarge) storing circuit states, sliding window sorted sets, and half-open probe counters. Redis Pub/Sub broadcasts all state transitions to all pods within < 10ms. Global Datastore replicates across 3 regions.
+* **Amazon Aurora PostgreSQL Global DB:** Persists circuit configurations, state history audit log (`state_transitions` table), and failure event samples. Multi-AZ with 2 read replicas per region.
+* **Circuit Breaker Control Plane API (ECS Fargate):** Stateless REST API for state queries, manual trip/reset, hot-reload config updates (propagated via Redis Pub/Sub in < 200ms), and metrics aggregation.
+* **Amazon MSK (Kafka):** Publishes all state transition events to topic `cb.state-transitions.v1`. Consumed by CloudWatch, Amazon Managed Grafana, and PagerDuty for real-time alerting.
+
+#### Circuit Breaker Architecture Diagrams
+
+##### A. High-Level System Architecture
+Five-section design: Caller Microservices → Circuit Breaker Sidecar (3-State FSM + Sliding Window + Bulkhead) → ElastiCache Redis State Store → Upstream/Fallback chain → Async observability (Kafka/CloudWatch).
+
+![Circuit Breaker System Architecture](./level_8_distributed_systems/circuit_breaker/circuit_breaker_system_architecture.png)
+
+##### B. AWS Cloud-Native Circuit Breaker Architecture
+Multi-region AWS deployment: ECS Fargate Envoy sidecars → ElastiCache Redis Global Datastore → Aurora PostgreSQL Global DB → Control Plane API → MSK Kafka → CloudWatch Alarms → PagerDuty/SNS alerting.
+
+![AWS Cloud-Native Circuit Breaker Architecture](./level_8_distributed_systems/circuit_breaker/circuit_breaker_aws_architecture.png)
+
+---
+
 ### Level 10 – Search Systems
+
 
 <a id="101-spell-checker-system-design"></a>
 #### 10.1 Spell Checker System Design
@@ -1004,4 +1037,4 @@ If you find these system design blueprints helpful, support my work by buying me
 
 ---
 
-*Updated on 2026-08-03*
+*Updated on 2026-08-04*

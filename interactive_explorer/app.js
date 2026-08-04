@@ -1829,6 +1829,154 @@ resource "aws_sagemaker_endpoint_configuration" "bert" {
 }`
             }
         }
+    },
+    circuit_breaker: {
+        title: "Distributed Circuit Breaker System",
+        description: "3-State FSM (CLOSED → OPEN → HALF-OPEN) with sliding window failure counters, bulkhead isolation, and Envoy sidecar deployment at 1M RPS.",
+        docLink: "viewer.html?file=level_8_distributed_systems/circuit_breaker/circuit_breaker_system_design.md",
+        techStack: [
+            { service: "Envoy Proxy Sidecar (ECS Fargate)", role: "Implements circuit_breakers and outlier_detection filters in-process alongside every microservice task. Adds < 0.1ms overhead to the hot path." },
+            { service: "Amazon ElastiCache for Redis Global Datastore", role: "Stores all circuit states, sliding window sorted sets, and half-open probe counters. 6-shard cluster (cache.r6g.2xlarge). < 1ms state reads. Redis Pub/Sub broadcasts state changes to all pods within < 10ms." },
+            { service: "Amazon Aurora PostgreSQL Global DB", role: "Persists circuit configurations, state transition audit logs, and failure event samples. Multi-AZ, Global DB across 3 regions." },
+            { service: "Circuit Breaker Control Plane API (ECS Fargate)", role: "REST API for state queries, manual trip/reset, hot-reload config updates, and metrics aggregation. Stateless, horizontally scalable." },
+            { service: "Amazon MSK (Kafka)", role: "Publishes state transition events (CLOSED→OPEN, etc.) to topic cb.state-transitions.v1. Consumed by CloudWatch, Grafana, and PagerDuty alerting pipelines." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Microservice Callers (ECS Fargate)",
+                category: "Upstream Callers",
+                description: "Any microservice (order-service, user-service, gateway) with an Envoy sidecar attached. All outbound calls to dependencies pass through the circuit breaker sidecar before reaching the network.",
+                payload: `{
+  "caller": "order-service",
+  "dependency": "payment-service",
+  "circuit_state": "CLOSED",
+  "call_intercepted_by": "envoy-sidecar",
+  "bulkhead_active": 3,
+  "bulkhead_max": 25
+}`,
+                config: `# Envoy circuit_breakers filter config
+circuit_breakers:
+  thresholds:
+    - priority: DEFAULT
+      max_connections: 100
+      max_requests: 25       # bulkhead max concurrent
+      max_retries: 3
+
+# Envoy outlier_detection config
+outlier_detection:
+  consecutive_5xx: 5
+  interval: 10s
+  base_ejection_time: 30s
+  max_ejection_percent: 50`
+            },
+            "proxy": {
+                name: "Circuit Breaker FSM (3-State)",
+                category: "State Machine Engine",
+                description: "The 3-state Finite State Machine: CLOSED (all calls pass), OPEN (fail-fast, no calls sent), HALF-OPEN (limited probes). State evaluated on every call in < 0.1ms using in-process sliding window counter.",
+                payload: `{
+  "service_id": "order-service",
+  "dependency_id": "payment-service",
+  "state": "OPEN",
+  "failure_rate": 67.3,
+  "slow_call_rate": 12.1,
+  "total_calls_in_window": 150,
+  "rejected_calls": 2340,
+  "wait_duration_remaining_ms": 45000,
+  "sliding_window": {
+    "type": "COUNT",
+    "size": 100,
+    "failure_threshold": "50%"
+  }
+}`,
+                config: `# Circuit Breaker Config (hot-reloadable)
+{
+  "failure_rate_threshold": 50.0,
+  "slow_call_duration_ms": 2000,
+  "minimum_number_of_calls": 10,
+  "window_type": "COUNT",
+  "window_size": 100,
+  "wait_duration_open_ms": 60000,
+  "permitted_calls_half_open": 5,
+  "max_concurrent_calls": 25,
+  "fallback_strategy": "CACHE"
+}`
+            },
+            "redis": {
+                name: "ElastiCache Redis (Circuit State Store)",
+                category: "Distributed State Store",
+                description: "Stores all circuit breaker state shared across pod replicas. Redis Pub/Sub broadcasts state transitions to all sidecars within < 10ms. Prevents thundering herd on half-open probes via atomic INCR.",
+                payload: `# State storage keys:
+GET  cb:state:order-service:payment-service
+→ "OPEN"
+
+ZADD cb:window:time:order-service:payment-service \\
+     1785807214.123 "call_abc:FAILURE"
+
+HGETALL cb:halfopen:order-service:payment-service
+→ probe_count: 3, probe_failures: 1
+
+# Pub/Sub broadcast:
+PUBLISH cb:events "order-service:payment-service:OPEN:1785807214"`,
+                config: `resource "aws_elasticache_replication_group" "cb_redis" {
+  replication_group_id       = "circuit-breaker-redis"
+  node_type                  = "cache.r6g.2xlarge"
+  num_node_groups            = 6
+  replicas_per_node_group    = 1
+  automatic_failover_enabled = true
+  multi_az_enabled           = true
+  global_replication_group_id = aws_elasticache_global_replication_group.cb.id
+}`
+            },
+            "db": {
+                name: "Aurora PostgreSQL (Config & Audit)",
+                category: "Relational Store",
+                description: "Persists circuit configurations (fail thresholds, bulkhead limits), state history audit trail (circuit_states table), and state transition event log (state_transitions table) for compliance and debugging.",
+                payload: `SELECT state, failure_rate_threshold, wait_duration_open_ms
+FROM circuit_configurations
+WHERE service_id = 'order-service'
+  AND dependency_id = 'payment-service';
+
+→ state=OPEN | threshold=50% | wait=60000ms
+
+SELECT from_state, to_state, trigger_reason, transitioned_at
+FROM state_transitions
+ORDER BY transitioned_at DESC LIMIT 5;`,
+                config: `resource "aws_rds_cluster" "cb_aurora" {
+  cluster_identifier = "circuit-breaker-aurora"
+  engine             = "aurora-postgresql"
+  database_name      = "circuit_breaker"
+  global_cluster_identifier = aws_rds_global_cluster.cb.id
+  availability_zones = ["us-east-1a", "us-east-1b", "us-east-1c"]
+}`
+            },
+            "sagemaker": {
+                name: "MSK Kafka + CloudWatch + Grafana",
+                category: "Observability Pipeline",
+                description: "Kafka topic cb.state-transitions.v1 receives all FSM transition events. CloudWatch consumes events for alarms (circuit OPEN rate spike). Grafana renders real-time circuit state topology maps.",
+                payload: `{
+  "event": "STATE_TRANSITION",
+  "from": "CLOSED",
+  "to": "OPEN",
+  "service_id": "order-service",
+  "dependency_id": "payment-service",
+  "reason": "failure_rate=67.3% >= threshold=50%",
+  "pod_id": "ecs-task-abc123",
+  "timestamp": "2026-08-04T01:45:00Z"
+}`,
+                config: `# CloudWatch Alarm on circuit trips
+resource "aws_cloudwatch_metric_alarm" "circuit_open" {
+  alarm_name          = "circuit-breaker-open"
+  metric_name         = "CircuitOpen"
+  namespace           = "CircuitBreaker"
+  statistic           = "Sum"
+  period              = 60
+  evaluation_periods  = 1
+  threshold           = 1
+  comparison_operator = "GreaterThanOrEqualToThreshold"
+  alarm_actions       = [aws_sns_topic.pagerduty.arn]
+}`
+            }
+        }
     }
 };
 
@@ -2767,6 +2915,100 @@ function renderSVG() {
                 <text x="50" y="36" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Ranked</text>
                 <text x="50" y="54" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">Suggestions</text>
                 <text x="50" y="72" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">≤ 50ms P99</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "circuit_breaker") {
+        svgContent = `
+        <svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg">
+            <!-- Background cluster box -->
+            <rect x="170" y="60" width="470" height="340" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="192" y="90" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">Circuit Breaker Sidecar — 3-State FSM Engine</text>
+
+            <!-- Static connection lines -->
+            <path d="M100 230 L185 230" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M345 155 L415 155" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M345 230 L415 230" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M345 305 L415 305" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M555 155 L640 185" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M555 230 L640 220" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M555 305 L640 265" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M260 340 L260 385" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <!-- Animated flow lines -->
+            <path class="data-flow-line" d="M100 230 L185 230" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M345 155 L415 155" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M345 305 L415 305" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M260 340 L260 385" stroke="#ef5350" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M555 155 L640 185" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M555 305 L640 265" stroke="#ef5350" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <!-- Caller microservices (ingress) -->
+            <g class="interactive-node" id="ingress" transform="translate(20, 190)">
+                <rect x="0" y="0" width="80" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="40" y="30" font-family="Outfit" font-size="10" fill="#ff9800" font-weight="700" text-anchor="middle">Caller</text>
+                <text x="40" y="48" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">Microservice</text>
+                <text x="40" y="64" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">Envoy Sidecar</text>
+            </g>
+
+            <!-- FSM — CLOSED state -->
+            <g class="interactive-node" id="proxy" transform="translate(186, 115)">
+                <rect x="0" y="0" width="158" height="240" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="79" y="26" font-family="Outfit" font-size="11" fill="#3b82f6" font-weight="700" text-anchor="middle">3-State FSM</text>
+
+                <!-- CLOSED -->
+                <rect x="10" y="38" width="138" height="46" rx="6" fill="#064e3b" stroke="#10b981" stroke-width="1.5" />
+                <text x="79" y="57" font-family="Outfit" font-size="10" fill="#10b981" font-weight="700" text-anchor="middle">🟢 CLOSED</text>
+                <text x="79" y="73" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">All requests pass through</text>
+
+                <!-- OPEN -->
+                <rect x="10" y="94" width="138" height="46" rx="6" fill="#450a0a" stroke="#ef4444" stroke-width="1.5" />
+                <text x="79" y="113" font-family="Outfit" font-size="10" fill="#ef4444" font-weight="700" text-anchor="middle">🔴 OPEN</text>
+                <text x="79" y="129" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Fail-fast, no upstream calls</text>
+
+                <!-- HALF-OPEN -->
+                <rect x="10" y="150" width="138" height="46" rx="6" fill="#451a03" stroke="#f59e0b" stroke-width="1.5" />
+                <text x="79" y="169" font-family="Outfit" font-size="10" fill="#f59e0b" font-weight="700" text-anchor="middle">🟡 HALF-OPEN</text>
+                <text x="79" y="185" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Probe requests only</text>
+
+                <!-- Sliding window -->
+                <rect x="10" y="206" width="138" height="26" rx="4" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1" />
+                <text x="79" y="222" font-family="Outfit" font-size="8" fill="#60a5fa" text-anchor="middle">Sliding Window · Bulkhead</text>
+            </g>
+
+            <!-- Redis State Store -->
+            <g class="interactive-node" id="redis" transform="translate(415, 115)">
+                <rect x="0" y="0" width="140" height="80" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="70" y="28" font-family="Outfit" font-size="11" fill="#10b981" font-weight="700" text-anchor="middle">ElastiCache Redis</text>
+                <text x="70" y="46" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">Circuit State Store</text>
+                <text x="70" y="62" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">6 shards · Pub/Sub</text>
+                <text x="70" y="76" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">&lt; 1ms state read</text>
+            </g>
+
+            <!-- Aurora Config DB -->
+            <g class="interactive-node" id="db" transform="translate(415, 265)">
+                <rect x="0" y="0" width="140" height="70" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="70" y="26" font-family="Outfit" font-size="11" fill="#ab47bc" font-weight="700" text-anchor="middle">Aurora PostgreSQL</text>
+                <text x="70" y="44" font-family="Outfit" font-size="9" fill="#f3f4f6" text-anchor="middle">Config + Audit Log</text>
+                <text x="70" y="60" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Global DB · Multi-AZ</text>
+            </g>
+
+            <!-- Observability -->
+            <g class="interactive-node" id="sagemaker" transform="translate(186, 385)">
+                <rect x="0" y="0" width="158" height="50" rx="8" fill="#111827" stroke="#ef5350" stroke-width="1.5" />
+                <text x="79" y="22" font-family="Outfit" font-size="10" fill="#ef5350" font-weight="700" text-anchor="middle">MSK Kafka + CloudWatch</text>
+                <text x="79" y="38" font-family="Outfit" font-size="9" fill="#6b7280" text-anchor="middle">State Transition Events</text>
+            </g>
+
+            <!-- Upstream / Fallback -->
+            <g class="interactive-node" id="target" transform="translate(640, 155)">
+                <rect x="0" y="0" width="125" height="145" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="62" y="24" font-family="Outfit" font-size="10" fill="#10b981" font-weight="700" text-anchor="middle">Upstream Svc</text>
+                <rect x="8" y="34" width="109" height="36" rx="5" fill="#064e3b" stroke="#10b981" stroke-width="1" />
+                <text x="62" y="55" font-family="Outfit" font-size="9" fill="#10b981" text-anchor="middle">✅ CLOSED path</text>
+                <rect x="8" y="78" width="109" height="57" rx="5" fill="#450a0a" stroke="#ef4444" stroke-width="1" />
+                <text x="62" y="98" font-family="Outfit" font-size="9" fill="#ef4444" text-anchor="middle">🔴 OPEN fallback:</text>
+                <text x="62" y="113" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Cache / Stub / 503</text>
+                <text x="62" y="128" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Retry-After header</text>
             </g>
         </svg>`;
     }
