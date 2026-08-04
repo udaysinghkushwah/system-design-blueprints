@@ -144,7 +144,13 @@ class App {
         // Update Breadcrumb Trail & Hero Badge
         const activeBtn = document.querySelector(`.nav-item[data-system="${systemKey}"]`);
         if (activeBtn) {
-            const groupHeader = activeBtn.closest('.nav-group')?.querySelector('.nav-group-title')?.textContent?.trim() || "System Design";
+            const titleEl = activeBtn.closest('.nav-group')?.querySelector('.nav-group-title');
+            let groupHeader = "System Design";
+            if (titleEl) {
+                const clone = titleEl.cloneNode(true);
+                clone.querySelectorAll('.count-badge, .chevron').forEach(el => el.remove());
+                groupHeader = clone.textContent.trim();
+            }
             const bcLevel = document.getElementById('bc-level');
             const bcTitle = document.getElementById('bc-title');
             if (bcLevel) bcLevel.textContent = groupHeader;
