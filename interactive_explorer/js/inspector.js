@@ -1,6 +1,6 @@
 /**
  * Inspector Panel Module for Interactive Explorer
- * Handles node selection details, payload/config tabs, and copy code buttons with toast notifications.
+ * Handles node selection details, payload/config/metrics tabs, and copy code buttons with toast notifications.
  */
 
 export class InspectorPanel {
@@ -12,6 +12,11 @@ export class InspectorPanel {
         this.insConfig = document.getElementById("ins-config");
         this.techStackContainer = document.getElementById("system-tech-stack");
         this.docLinkButton = document.getElementById("system-doc-link");
+
+        // Metric nodes
+        this.metricQps = document.getElementById("node-metric-qps");
+        this.metricCpu = document.getElementById("node-metric-cpu");
+        this.metricRam = document.getElementById("node-metric-ram");
 
         this.initTabs();
         this.initCopyButtons();
@@ -61,6 +66,15 @@ export class InspectorPanel {
         if (this.insDescription) this.insDescription.textContent = nodeData.description || "";
         if (this.insPayload) this.insPayload.textContent = nodeData.payload || "// No payload data available";
         if (this.insConfig) this.insConfig.textContent = nodeData.config || "# No terraform config available";
+
+        // Generate dynamic node metric values
+        const randomQps = Math.floor(Math.random() * 30000 + 15000).toLocaleString();
+        const randomCpu = Math.floor(Math.random() * 40 + 30);
+        const randomRam = Math.floor(Math.random() * 35 + 45);
+
+        if (this.metricQps) this.metricQps.textContent = `${randomQps} QPS`;
+        if (this.metricCpu) this.metricCpu.textContent = `${randomCpu}%`;
+        if (this.metricRam) this.metricRam.textContent = `${randomRam}%`;
 
         // Update tech stack list if systemData provided
         if (systemData && this.techStackContainer) {

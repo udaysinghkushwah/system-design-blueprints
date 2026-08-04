@@ -36,6 +36,8 @@ class App {
         this.simulateBtn = document.getElementById("simulate-btn");
         this.statusIndicator = document.querySelector(".status-indicator");
         this.statusText = document.querySelector(".status-text");
+        this.heroLevelBadge = document.getElementById("hero-level-badge");
+        this.brandLogoBtn = document.getElementById("brand-logo-btn");
         
         // Metric elements
         this.metricLatency = document.getElementById("metric-latency");
@@ -54,6 +56,9 @@ class App {
     }
 
     initEventListeners() {
+        // Brand logo click
+        this.brandLogoBtn?.addEventListener("click", () => this.selectSystem("search_ranking"));
+
         // System button selection
         document.addEventListener("click", (e) => {
             const sysBtn = e.target.closest(".nav-item[data-system]");
@@ -91,8 +96,8 @@ class App {
 
     initKeyboardShortcuts() {
         document.addEventListener("keydown", (e) => {
-            // Ignore if typing in input field
-            if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+            // Ignore if typing in input field (except escape)
+            if (["INPUT", "TEXTAREA"].includes(document.activeElement.tagName) && e.code !== "Escape") return;
 
             if (e.code === "Space") {
                 e.preventDefault();
@@ -103,13 +108,14 @@ class App {
                 this.prevStep();
             } else if (e.code === "KeyK" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
-                this.searchFilter.focusSearch();
+                this.searchFilter.openCommandPalette();
             } else if (e.key === "/") {
                 e.preventDefault();
-                this.searchFilter.focusSearch();
+                this.searchFilter.openCommandPalette();
             } else if (e.code === "Escape") {
                 this.canvasController.resetView();
                 this.stopStepAutoPlay();
+                this.searchFilter.closeCommandPalette();
             }
         });
     }
@@ -134,6 +140,17 @@ class App {
         const sysData = SYSTEMS[systemKey];
         if (this.systemTitle) this.systemTitle.textContent = sysData.title || systemKey;
         if (this.systemDescription) this.systemDescription.textContent = sysData.description || "";
+
+        // Update Breadcrumb Trail & Hero Badge
+        const activeBtn = document.querySelector(`.nav-item[data-system="${systemKey}"]`);
+        if (activeBtn) {
+            const groupHeader = activeBtn.closest('.nav-group')?.querySelector('.nav-group-title')?.textContent?.trim() || "System Design";
+            const bcLevel = document.getElementById('bc-level');
+            const bcTitle = document.getElementById('bc-title');
+            if (bcLevel) bcLevel.textContent = groupHeader;
+            if (bcTitle) bcTitle.textContent = sysData.title || systemKey;
+            if (this.heroLevelBadge) this.heroLevelBadge.innerHTML = `<i class="fa-solid fa-shield-halved"></i> ${groupHeader}`;
+        }
 
         // Default active node (usually 'proxy' or 'ingress')
         const nodes = sysData.nodes || {};

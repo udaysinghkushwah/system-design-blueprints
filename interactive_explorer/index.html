@@ -3,32 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive System Design Architecture Explorer</title>
+    <title>Enterprise System Design Architecture Dashboard</title>
     <!-- Modern FontAwesome 6 Vector Icon CDN -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
-<body>
-    <div class="app-container">
-        <!-- Sidebar Navigation -->
-        <aside class="sidebar">
-            <div class="brand">
+<body class="dashboard-body">
+    <!-- Top Global Header Navbar -->
+    <header class="top-navbar">
+        <div class="navbar-left">
+            <div class="brand-logo" id="brand-logo-btn">
                 <i class="fa-solid fa-cubes-stacked logo-icon"></i>
-                <h2>Blueprint Explorer</h2>
+                <span class="brand-title">Blueprint Studio</span>
+                <span class="version-tag">v2.5</span>
             </div>
+            <div class="nav-divider"></div>
+            <div class="breadcrumb-trail">
+                <span class="breadcrumb-item" id="bc-level">Level 10 – Search Systems</span>
+                <i class="fa-solid fa-chevron-right bc-sep"></i>
+                <span class="breadcrumb-item active" id="bc-title">Search Ranking</span>
+            </div>
+        </div>
 
-            <!-- Quick Search Input -->
-            <div class="search-box">
+        <div class="navbar-center">
+            <div class="global-search-box" id="open-cmd-palette">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="system-search" placeholder="Search 25+ blueprints..." autocomplete="off">
+                <input type="text" id="system-search" placeholder="Search 25+ system blueprints (e.g. Ranking, RAG, Rate Limiter)..." autocomplete="off" readonly>
                 <kbd class="search-shortcut">⌘K</kbd>
+            </div>
+        </div>
+
+        <div class="navbar-right">
+            <a href="https://github.com/udaysinghkushwah/system-design-blueprints" target="_blank" class="nav-icon-link" title="GitHub Repository">
+                <i class="fa-brands fa-github"></i>
+            </a>
+            <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="chai-pill-btn">
+                <i class="fa-solid fa-mug-hot"></i> Buy Chai
+            </a>
+            <div class="status-badge">
+                <span class="pulse-dot"></span>
+                <span class="status-text">Production SLA</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <aside class="dashboard-sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title-row">
+                    <span class="sidebar-title">SYSTEM BLUEPRINTS</span>
+                    <span class="total-count-badge">25 Total</span>
+                </div>
+                <!-- Filter Pills -->
+                <div class="filter-pills-row" id="filter-pills">
+                    <button class="filter-pill active" data-filter="all">All</button>
+                    <button class="filter-pill" data-filter="l1">L1 Core</button>
+                    <button class="filter-pill" data-filter="l4">L4 Delivery</button>
+                    <button class="filter-pill" data-filter="l7">L7 AI</button>
+                    <button class="filter-pill" data-filter="l8">L8 Dist</button>
+                    <button class="filter-pill" data-filter="l10">L10 Search</button>
+                </div>
             </div>
             
             <div class="sidebar-scroll">
                 <!-- Documentation -->
-                <div class="nav-group">
-                    <h3>Documentation</h3>
+                <div class="nav-group" data-level="doc">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Documentation</span>
+                    </div>
                     <nav class="system-list">
                         <a class="nav-item" href="viewer.html?file=README.md" style="text-decoration: none;">
                             <i class="fa-solid fa-book-open nav-icon"></i>
@@ -38,8 +82,10 @@
                 </div>
 
                 <!-- Level 1 -->
-                <div class="nav-group">
-                    <h3>Level 1 – Core Design</h3>
+                <div class="nav-group" data-level="l1">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Level 1 – Core Design</span>
+                    </div>
                     <nav class="system-list">
                         <button class="nav-item" data-system="url_shortener">
                             <i class="fa-solid fa-link nav-icon"></i>
@@ -81,8 +127,10 @@
                 </div>
 
                 <!-- Level 4 -->
-                <div class="nav-group">
-                    <h3>Level 4 – Delivery</h3>
+                <div class="nav-group" data-level="l4">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Level 4 – Delivery</span>
+                    </div>
                     <nav class="system-list">
                         <button class="nav-item" data-system="food_delivery">
                             <i class="fa-solid fa-utensils nav-icon"></i>
@@ -92,8 +140,10 @@
                 </div>
 
                 <!-- Level 7 -->
-                <div class="nav-group">
-                    <h3>Level 7 – AI Systems</h3>
+                <div class="nav-group" data-level="l7">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Level 7 – AI Systems</span>
+                    </div>
                     <nav class="system-list">
                         <button class="nav-item" data-system="rag_pipeline">
                             <i class="fa-solid fa-brain nav-icon"></i>
@@ -127,8 +177,10 @@
                 </div>
 
                 <!-- Level 8 -->
-                <div class="nav-group">
-                    <h3>Level 8 – Distributed</h3>
+                <div class="nav-group" data-level="l8">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Level 8 – Distributed</span>
+                    </div>
                     <nav class="system-list">
                         <button class="nav-item" data-system="api_gateway">
                             <i class="fa-solid fa-door-open nav-icon"></i>
@@ -158,8 +210,10 @@
                 </div>
 
                 <!-- Level 10 -->
-                <div class="nav-group">
-                    <h3>Level 10 – Search Systems</h3>
+                <div class="nav-group" data-level="l10">
+                    <div class="nav-group-header">
+                        <span class="nav-group-title"><i class="fa-solid fa-chevron-down chevron"></i> Level 10 – Search Systems</span>
+                    </div>
                     <nav class="system-list">
                         <button class="nav-item" data-system="spell_checker">
                             <i class="fa-solid fa-spell-check nav-icon"></i>
@@ -174,53 +228,89 @@
             </div>
 
             <div class="sidebar-footer">
-                <a href="https://www.buymeachai.in/toudaysinghkushwah" target="_blank" class="btn secondary-btn chai-btn">
-                    <span><i class="fa-solid fa-mug-hot"></i> Buy Me a Chai</span>
-                </a>
                 <button id="simulate-btn" class="btn primary-btn"><i class="fa-solid fa-pause"></i> Pause Simulation</button>
             </div>
         </aside>
 
-        <!-- Main Workspace -->
+        <!-- Main Workspace View -->
         <main class="main-content">
-            <header class="workspace-header">
-                <div class="title-area">
+            <!-- System Title & Overview Banner -->
+            <div class="dashboard-hero-banner">
+                <div class="hero-text">
+                    <div class="hero-badge" id="hero-level-badge">
+                        <i class="fa-solid fa-shield-halved"></i> Production Blueprint Architecture
+                    </div>
                     <h1 id="system-title">Multi-Stage Search Ranking Engine</h1>
                     <p id="system-description" class="subtitle">Multi-stage Learning-to-Rank (LTR) funnel processing 100k+ QPS at &lt;50ms P99 latency: L1 Hybrid Retrieval (BM25 + Vector KNN) → L2 LightGBM Pre-Rank → L3 Deep Neural LTR → L4 MMR Diversity.</p>
                 </div>
-                
-                <!-- Live System SLA Metrics Dashboard Bar -->
-                <div class="metrics-bar">
-                    <div class="metric-chip">
-                        <span class="metric-label">P99 Latency</span>
-                        <span class="metric-val" id="metric-latency">&lt; 50ms P99</span>
-                    </div>
-                    <div class="metric-chip">
-                        <span class="metric-label">Peak QPS</span>
-                        <span class="metric-val" id="metric-qps">100,000 QPS</span>
-                    </div>
-                    <div class="metric-chip">
-                        <span class="metric-label">Availability</span>
-                        <span class="metric-val" id="metric-sla">99.99%</span>
-                    </div>
-                    <div class="metric-chip">
-                        <span class="metric-label">Target Scale</span>
-                        <span class="metric-val" id="metric-scale">10B Catalog Items</span>
-                    </div>
-                    <div class="status-indicator">
-                        <span class="pulse-dot"></span>
-                        <span class="status-text">Simulating Active Traffic</span>
-                    </div>
-                </div>
-            </header>
 
+                <div class="hero-actions">
+                    <a id="system-doc-link" href="#" target="_blank" class="btn primary-action-btn">
+                        <span>Read Blueprint Doc</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- KPI Metric Stat Cards Grid (Vercel / Datadog Style) -->
+            <div class="kpi-cards-grid">
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">P99 LATENCY SLA</span>
+                        <i class="fa-solid fa-stopwatch kpi-icon"></i>
+                    </div>
+                    <div class="kpi-value-row">
+                        <span class="kpi-value" id="metric-latency">&lt; 50ms</span>
+                        <span class="kpi-trend positive"><i class="fa-solid fa-arrow-trend-down"></i> -12% vs SLA</span>
+                    </div>
+                    <div class="kpi-subtext">Target P99 Latency SLA budget</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">THROUGHPUT CAPACITY</span>
+                        <i class="fa-solid fa-gauge-high kpi-icon"></i>
+                    </div>
+                    <div class="kpi-value-row">
+                        <span class="kpi-value" id="metric-qps">100,000 QPS</span>
+                        <span class="kpi-trend neutral"><i class="fa-solid fa-bolt"></i> Peak 300k</span>
+                    </div>
+                    <div class="kpi-subtext">Peak queries per second capacity</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">AVAILABILITY SLA</span>
+                        <i class="fa-solid fa-server kpi-icon"></i>
+                    </div>
+                    <div class="kpi-value-row">
+                        <span class="kpi-value" id="metric-sla">99.99%</span>
+                        <span class="kpi-trend positive"><i class="fa-solid fa-circle-check"></i> Multi-AZ Active</span>
+                    </div>
+                    <div class="kpi-subtext">Multi-region active-active deployment</div>
+                </div>
+
+                <div class="kpi-card">
+                    <div class="kpi-header">
+                        <span class="kpi-title">TARGET SCALE</span>
+                        <i class="fa-solid fa-database kpi-icon"></i>
+                    </div>
+                    <div class="kpi-value-row">
+                        <span class="kpi-value" id="metric-scale">10B Catalog</span>
+                        <span class="kpi-trend neutral"><i class="fa-solid fa-users"></i> 500M DAU</span>
+                    </div>
+                    <div class="kpi-subtext">Catalog items &amp; active user scale</div>
+                </div>
+            </div>
+
+            <!-- Workspace Grid (Diagram + Inspector Panel) -->
             <div class="workspace-grid">
                 <!-- Architecture Diagram Stage -->
                 <section class="diagram-card glass-panel">
                     <div class="card-header border-bottom flex-between">
-                        <div>
-                            <h3>Interactive AWS Architecture Flow</h3>
-                            <span class="hint-text">Click nodes to inspect specs, scroll/drag canvas to zoom/pan, or run guided tour</span>
+                        <div class="diagram-header-info">
+                            <h3><i class="fa-solid fa-diagram-project text-cyan"></i> AWS System Architecture Diagram</h3>
+                            <span class="hint-text">Click nodes to inspect specs, scroll/drag canvas to zoom/pan, or execute sequence tour</span>
                         </div>
 
                         <!-- Floating Canvas Controls Toolbar -->
@@ -267,9 +357,10 @@
                         </div>
 
                         <div class="tabs">
-                            <button class="tab-btn active" data-tab="system">System Overview</button>
-                            <button class="tab-btn" data-tab="payload">Node Payload</button>
-                            <button class="tab-btn" data-tab="config">Node Config</button>
+                            <button class="tab-btn active" data-tab="system">Tech Stack</button>
+                            <button class="tab-btn" data-tab="payload">Payload</button>
+                            <button class="tab-btn" data-tab="config">Terraform</button>
+                            <button class="tab-btn" data-tab="metrics">Metrics</button>
                         </div>
 
                         <div class="tab-content" id="tab-system">
@@ -280,15 +371,12 @@
                                         <!-- Dynamic Tech Stack List -->
                                     </div>
                                 </div>
-                                <div class="info-section doc-section">
-                                    <a id="system-doc-link" href="#" target="_blank" class="btn secondary-btn doc-link">View Full Markdown Blueprint <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
-                                </div>
                             </div>
                         </div>
 
                         <div class="tab-content hidden" id="tab-payload">
                             <div class="code-header">
-                                <button class="copy-code-btn" data-copy-target="ins-payload"><i class="fa-regular fa-copy"></i> Copy Payload JSON</button>
+                                <button class="copy-code-btn" data-copy-target="ins-payload"><i class="fa-regular fa-copy"></i> Copy JSON</button>
                             </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-payload" class="language-json">{
@@ -299,16 +387,75 @@
 
                         <div class="tab-content hidden" id="tab-config">
                             <div class="code-header">
-                                <button class="copy-code-btn" data-copy-target="ins-config"><i class="fa-regular fa-copy"></i> Copy Terraform HCL</button>
+                                <button class="copy-code-btn" data-copy-target="ins-config"><i class="fa-regular fa-copy"></i> Copy Terraform</button>
                             </div>
                             <div class="code-wrapper">
                                 <pre><code id="ins-config" class="language-terraform"># Resource Configuration</code></pre>
+                            </div>
+                        </div>
+
+                        <div class="tab-content hidden" id="tab-metrics">
+                            <div class="metrics-group">
+                                <div class="metric-bar-item">
+                                    <div class="metric-bar-label">
+                                        <span>Simulated Node Throughput</span>
+                                        <span id="node-metric-qps">42,800 QPS</span>
+                                    </div>
+                                    <div class="metric-progress-track">
+                                        <div class="metric-progress-fill" style="width: 72%;"></div>
+                                    </div>
+                                </div>
+                                <div class="metric-bar-item">
+                                    <div class="metric-bar-label">
+                                        <span>CPU Utilization</span>
+                                        <span id="node-metric-cpu">48%</span>
+                                    </div>
+                                    <div class="metric-progress-track">
+                                        <div class="metric-progress-fill" style="width: 48%; background: var(--accent-green);"></div>
+                                    </div>
+                                </div>
+                                <div class="metric-bar-item">
+                                    <div class="metric-bar-label">
+                                        <span>Memory Allocation</span>
+                                        <span id="node-metric-ram">64%</span>
+                                    </div>
+                                    <div class="metric-progress-track">
+                                        <div class="metric-progress-fill" style="width: 64%; background: var(--accent-amber);"></div>
+                                    </div>
+                                </div>
+                                <div class="metric-bar-item">
+                                    <div class="metric-bar-label">
+                                        <span>Error Rate SLA</span>
+                                        <span>0.001%</span>
+                                    </div>
+                                    <div class="metric-progress-track">
+                                        <div class="metric-progress-fill" style="width: 2%; background: var(--accent-green);"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
             </div>
         </main>
+    </div>
+
+    <!-- Global Command Palette Modal (⌘K) -->
+    <div class="modal-backdrop" id="cmd-palette-backdrop">
+        <div class="cmd-palette-card">
+            <div class="cmd-search-header">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="cmd-palette-input" placeholder="Type a system name or level (e.g. Rate Limiter, RAG)..." autocomplete="off">
+            </div>
+            <div class="cmd-results-list" id="cmd-palette-results">
+                <!-- Dynamic search items rendered here -->
+            </div>
+            <div class="cmd-footer">
+                <span><kbd class="search-shortcut">↑↓</kbd> Navigate</span>
+                <span><kbd class="search-shortcut">↵</kbd> Select</span>
+                <span><kbd class="search-shortcut">ESC</kbd> Close</span>
+            </div>
+        </div>
     </div>
     
     <!-- ES Modular Entry Point -->
