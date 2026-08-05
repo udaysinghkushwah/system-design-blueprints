@@ -1345,6 +1345,93 @@ const systemData = {
     version = "$Latest"
   }
 }`
+    live_streaming: {
+        title: "High-Scale Live Streaming Platform Architecture",
+        description: "Sub-2s glass-to-glass latency live video ingestion, real-time GPU ABR transcoding, LL-HLS origin packaging, CloudFront CDN edge delivery, and ultra-fast WebSocket live chat fanout.",
+        docLink: "viewer.html?file=level_6_streaming/live_streaming/live_streaming_system_design.md",
+        techStack: [
+            { service: "AWS Elemental MediaLive / GPU Transcoder", role: "Real-time hardware encoding of raw ingest video into 1080p-360p ABR renditions." },
+            { service: "AWS Elemental MediaPackage / Packager", role: "Packages transcoded renditions into LL-HLS fMP4 250ms partial segments and m3u8 playlists." },
+            { service: "Amazon CloudFront & Origin Shield", role: "Global edge CDN distribution with HTTP/2 server push and origin request consolidation." },
+            { service: "Amazon ElastiCache for Redis", role: "High-throughput Pub/Sub message broker for sub-50ms live chat fanout." },
+            { service: "Amazon Aurora PostgreSQL & S3", role: "Relational stream metadata storage and durable long-term VOD recording archive." }
+        ],
+        nodes: {
+            "ingress": {
+                name: "Network Load Balancer & Ingest Gateway",
+                category: "Media Ingress",
+                description: "Terminates RTMP/SRT/WHIP TCP/UDP ingest streams, validates stream authentication keys, and allocates transcoding tasks.",
+                payload: `{
+  "stream_id": "str_8819201",
+  "channel_id": "chn_99210",
+  "protocol": "RTMP",
+  "ingest_bitrate_kbps": 8192,
+  "fps": 60.0
+}`,
+                config: `resource "aws_lb" "rtmp_nlb" {
+  name               = "live-ingest-nlb"
+  load_balancer_type = "network"
+  subnets            = aws_subnet.public.*.id
+}`
+            },
+            "transcoder": {
+                name: "AWS Elemental MediaLive / GPU Farm",
+                category: "GPU Transcoder",
+                description: "Decodes raw incoming video and encodes 4 synchronized ABR renditions (1080p60 to 360p30) with 2.0s GOP structures.",
+                payload: `{
+  "stream_id": "str_8819201",
+  "profiles": ["1080p60", "720p60", "480p30", "360p30"],
+  "codec": "H.264 / AAC",
+  "gop_duration_sec": 2.0
+}`,
+                config: `resource "aws_medialive_channel" "live_transcoder" {
+  name          = "live-abr-channel"
+  channel_class = "SINGLE_PIPELINE"
+  role_arn      = aws_iam_role.medialive_role.arn
+}`
+            },
+            "origin": {
+                name: "MediaPackage & Origin Shield Cluster",
+                category: "Origin & Packager",
+                description: "Generates LL-HLS fMP4 250ms partial segments, emits m3u8 playlists, and caches segments to shield origin servers.",
+                payload: `#EXTM3U
+#EXT-X-VERSION:6
+#EXT-X-PART-INF:PART-TARGET=0.250
+#EXT-X-PART:DURATION=0.250,URI="segment_104.part7.m4s"`,
+                config: `resource "aws_media_package_channel" "live_origin" {
+  id          = "live-stream-origin-channel"
+  description = "Origin shield & packaging channel for LL-HLS"
+}`
+            },
+            "cdn": {
+                name: "Amazon CloudFront Global CDN",
+                category: "Edge Distribution",
+                description: "450+ edge POPs delivering LL-HLS chunked transfer encoding video streams to millions of concurrent viewers with 98.5% CHR.",
+                payload: `HTTP/2 200 OK
+Content-Type: video/iso.segment
+Cache-Control: public, max-age=31536000`,
+                config: `resource "aws_cloudfront_distribution" "cdn" {
+  origin {
+    domain_name = aws_media_package_channel.live_origin.egress_endpoints[0].url
+    origin_id   = "MediaPackageOrigin"
+  }
+}`
+            },
+            "chat": {
+                name: "WebSocket Gateway & Redis Pub/Sub",
+                category: "Interactive Engagement",
+                description: "Stateful WebSocket gateway cluster connected to Redis Pub/Sub for sub-50ms live chat broadcast fanout.",
+                payload: `{
+  "event": "CHAT_MESSAGE",
+  "sender": "ProGamer99",
+  "text": "POG CHAMP! 🔥",
+  "timestamp_ms": 1785943200150
+}`,
+                config: `resource "aws_apigatewayv2_api" "websocket_chat" {
+  name                       = "live-chat-websocket-api"
+  protocol_type              = "WEBSOCKET"
+  route_selection_expression = "$request.body.action"
+}`
             }
         }
     },
@@ -3169,6 +3256,51 @@ function renderSVG() {
                 <text x="62" y="98" font-family="Outfit" font-size="9" fill="#ef4444" text-anchor="middle">🔴 OPEN fallback:</text>
                 <text x="62" y="113" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Cache / Stub / 503</text>
                 <text x="62" y="128" font-family="Outfit" font-size="8" fill="#6b7280" text-anchor="middle">Retry-After header</text>
+            </g>
+        </svg>`;
+    } else if (currentSystem === "live_streaming") {
+        svgContent = `
+        <svg viewBox="0 0 850 480" xmlns="http://www.w3.org/2000/svg">
+            <rect x="160" y="60" width="650" height="380" rx="15" fill="#1f2937" stroke="#4b5563" stroke-width="2" />
+            <text x="180" y="90" font-family="Outfit" font-size="12" fill="#9ca3af" font-weight="600">AWS Cloud VPC Scope (Live Streaming Pipeline)</text>
+
+            <path d="M120 200 L 200 200" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 200 L 410 200" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M550 200 L 620 200" stroke="#4b5563" stroke-width="2" fill="none" />
+            <path d="M340 240 L 410 330" stroke="#4b5563" stroke-width="2" fill="none" />
+
+            <path class="data-flow-line" d="M120 200 L 200 200" stroke="#ff9800" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 200 L 410 200" stroke="#3b82f6" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M550 200 L 620 200" stroke="#10b981" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+            <path class="data-flow-line" d="M340 240 L 410 330" stroke="#ab47bc" fill="none" style="display: ${simulationActive ? 'block' : 'none'};" />
+
+            <g class="interactive-node" id="ingress" transform="translate(40, 160)">
+                <rect x="0" y="0" width="100" height="80" rx="10" fill="#111827" stroke="#ff9800" stroke-width="2" />
+                <text x="50" y="45" font-family="Outfit" font-size="12" fill="#ff9800" font-weight="700" text-anchor="middle">RTMP Ingest</text>
+            </g>
+
+            <g class="interactive-node" id="transcoder" transform="translate(200, 150)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#3b82f6" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#3b82f6" font-weight="700" text-anchor="middle">GPU Transcoder</text>
+                <text x="70" y="65" font-family="Outfit" font-size="10" fill="#9ca3af" text-anchor="middle">ABR 1080p-360p</text>
+            </g>
+
+            <g class="interactive-node" id="origin" transform="translate(410, 150)">
+                <rect x="0" y="0" width="140" height="100" rx="10" fill="#111827" stroke="#10b981" stroke-width="2" />
+                <text x="70" y="45" font-family="Outfit" font-size="13" fill="#10b981" font-weight="700" text-anchor="middle">Origin Packager</text>
+                <text x="70" y="65" font-family="Outfit" font-size="10" fill="#9ca3af" text-anchor="middle">LL-HLS fMP4</text>
+            </g>
+
+            <g class="interactive-node" id="cdn" transform="translate(620, 150)">
+                <rect x="0" y="0" width="160" height="100" rx="10" fill="#111827" stroke="#00e5ff" stroke-width="2" />
+                <text x="80" y="45" font-family="Outfit" font-size="13" fill="#00e5ff" font-weight="700" text-anchor="middle">CloudFront CDN</text>
+                <text x="80" y="65" font-family="Outfit" font-size="10" fill="#9ca3af" text-anchor="middle">5M+ Viewers</text>
+            </g>
+
+            <g class="interactive-node" id="chat" transform="translate(410, 290)">
+                <rect x="0" y="0" width="200" height="90" rx="10" fill="#111827" stroke="#ab47bc" stroke-width="2" />
+                <text x="100" y="45" font-family="Outfit" font-size="13" fill="#ab47bc" font-weight="700" text-anchor="middle">WebSocket Chat</text>
+                <text x="100" y="65" font-family="Outfit" font-size="10" fill="#9ca3af" text-anchor="middle">Redis Pub/Sub Fanout</text>
             </g>
         </svg>`;
     }

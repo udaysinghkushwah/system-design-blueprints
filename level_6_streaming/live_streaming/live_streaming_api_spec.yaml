@@ -1,0 +1,276 @@
+openapi: 3.0.3
+info:
+  title: Live Streaming Platform API
+  description: Production-grade REST API specification for Live Streaming management, ingest authentication, playback manifests, and live chat.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8096/api/v1
+    description: Local Mock Server
+  - url: https://api.livestream.com/v1
+    description: Production API Gateway
+
+paths:
+  /streams/start:
+    post:
+      summary: Authenticate Ingest & Start Live Stream
+      description: Validates channel stream key, assigns a GPU transcoding worker, and returns RTMP/SRT ingest endpoints.
+      operationId: startStream
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartStreamRequest'
+      responses:
+        '200':
+          description: Stream session successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StartStreamResponse'
+        '401':
+          description: Invalid stream key or unauthorized channel
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /streams/{stream_id}/manifest.m3u8:
+    get:
+      summary: Get Playback Master Manifest (HLS)
+      description: Returns the master HLS playlist containing multi-bitrate ABR renditions for playback.
+      operationId: getPlaybackManifest
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          description: Unique stream identifier
+          schema:
+            type: string
+            example: str_8819201
+      responses:
+        '200':
+          description: HLS Master Playlist (m3u8)
+          content:
+            application/x-mpegURL:
+              schema:
+                type: string
+                example: |
+                  #EXTM3U
+                  #EXT-X-VERSION:6
+                  #EXT-X-STREAM-INF:BANDWIDTH=6160000,RESOLUTION=1920x1080
+                  1080p60/index.m3u8
+        '404':
+          description: Stream not found or offline
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /streams/{stream_id}/chat:
+    get:
+      summary: Get Recent Live Chat Backfill
+      description: Retrieves the last 50 chat messages for a live stream channel upon client join.
+      operationId: getRecentChatMessages
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: str_8819201
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: List of recent chat messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  stream_id:
+                    type: string
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ChatMessage'
+
+    post:
+      summary: Send Live Chat Message
+      description: Publishes a new chat message to the live stream channel.
+      operationId: sendChatMessage
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: str_8819201
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - sender_username
+                - text
+              properties:
+                sender_username:
+                  type: string
+                  example: StreamFanatic
+                text:
+                  type: string
+                  example: POG CHAMP! 🔥
+      responses:
+        '201':
+          description: Chat message published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatMessage'
+
+  /streams/{stream_id}/health:
+    get:
+      summary: Get Stream Telemetry & Health Metrics
+      description: Returns real-time stream stats including FPS, ingest bitrate, dropped frames, and concurrent viewers.
+      operationId: getStreamHealth
+      parameters:
+        - name: stream_id
+          in: path
+          required: true
+          schema:
+            type: string
+            example: str_8819201
+      responses:
+        '200':
+          description: Real-time telemetry metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreamHealthMetrics'
+
+  /health:
+    get:
+      summary: Ingest & Gateway Health Check
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: HEALTHY
+                  uptime_seconds:
+                    type: integer
+                    example: 3600
+
+components:
+  schemas:
+    StartStreamRequest:
+      type: object
+      required:
+        - channel_id
+        - stream_key
+        - ingest_protocol
+      properties:
+        channel_id:
+          type: string
+          example: chn_99210
+        stream_key:
+          type: string
+          example: live_sk_8829102938
+        ingest_protocol:
+          type: string
+          enum: [RTMP, SRT, WHIP]
+          example: RTMP
+        client_ip:
+          type: string
+          example: 198.51.100.42
+
+    StartStreamResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: SUCCESS
+        stream_id:
+          type: string
+          example: str_8819201
+        assigned_ingest_endpoint:
+          type: string
+          example: rtmp://ingest-us-east.livestream.com/live
+        session_token:
+          type: string
+          example: sess_tok_991823189231
+        gop_size_seconds:
+          type: number
+          example: 2.0
+        supported_renditions:
+          type: array
+          items:
+            type: string
+          example: ["1080p60", "720p60", "480p30", "360p30"]
+
+    ChatMessage:
+      type: object
+      properties:
+        message_id:
+          type: string
+          example: msg_7781290
+        stream_id:
+          type: string
+          example: str_8819201
+        sender_username:
+          type: string
+          example: StreamFanatic
+        text:
+          type: string
+          example: What a clutch play! 🔥🔥
+        timestamp_ms:
+          type: integer
+          example: 1785943200150
+
+    StreamHealthMetrics:
+      type: object
+      properties:
+        stream_id:
+          type: string
+          example: str_8819201
+        status:
+          type: string
+          example: LIVE
+        ingest_fps:
+          type: number
+          example: 60.0
+        ingest_bitrate_kbps:
+          type: integer
+          example: 8192
+        dropped_frames:
+          type: integer
+          example: 0
+        concurrent_viewers:
+          type: integer
+          example: 14250
+        cpu_usage_percent:
+          type: number
+          example: 34.2
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: UNAUTHORIZED
+        message:
+          type: string
+          example: Invalid or expired stream key provided.

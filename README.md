@@ -9,7 +9,7 @@
 
 ## ⚡ Interactive Architecture Explorer
 
-We have built a premium, interactive web dashboard to explore all 24 completed distributed architectures in real-time.
+We have built a premium, interactive web dashboard to explore all 25 completed distributed architectures in real-time.
 
 * **🚀 Launch Live Dashboard:** [https://udaysingh-system-design.web.app](https://udaysingh-system-design.web.app)
 * **💻 Run Locally:** [Launch locally (http://localhost:8000)](http://localhost:8000) (when serving from your local server port `8000`)
@@ -35,6 +35,8 @@ We have built a premium, interactive web dashboard to explore all 24 completed d
     - [🏨 Global Hotel Booking System Design](#19-global-hotel-booking-system-design)
   - **Level 4 – Ride Sharing & Delivery**
     - [🍔 Food Delivery System Design](#41-food-delivery-system-design)
+  - **Level 6 – Streaming**
+    - [📹 Live Streaming System Design](#62-live-streaming-system-design)
   - **Level 7 – AI Systems**
     - [🧠 RAG Pipeline System Design](#71-rag-pipeline-system-design)
     - [💾 Vector Database System Design](#72-vector-database-system-design)
@@ -141,7 +143,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | # | Topic | Status |
 |---|-------|--------|
 | 1 | Design Video Streaming Platform | ⬜ Planned |
-| 2 | Design Live Streaming | ⬜ Planned |
+| 2 | Design Live Streaming | ✅ [Blueprint](./level_6_streaming/live_streaming/live_streaming_system_design.md) |
 | 3 | Design CDN | ⬜ Planned |
 | 4 | Design Video Encoding | ⬜ Planned |
 | 5 | Design Adaptive Bitrate Streaming | ⬜ Planned |
@@ -292,7 +294,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 3 | E-commerce | 9 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
 | 4 | Ride Sharing & Delivery | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 5 | Social Media | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
-| 6 | Streaming | 5 | 0 | ⬜⬜⬜⬜⬜ |
+| 6 | Streaming | 5 | 1 | ✅⬜⬜⬜⬜ |
 | 7 | AI Systems | 7 | 7 | ✅✅✅✅✅✅✅ |
 | 8 | Distributed Systems | 10 | 6 | ✅✅✅✅✅✅⬜⬜⬜⬜ |
 | 9 | Storage Systems | 6 | 0 | ⬜⬜⬜⬜⬜⬜ |
@@ -303,7 +305,7 @@ A comprehensive roadmap of **100+ system design questions** organized by difficu
 | 14 | Observability | 5 | 0 | ⬜⬜⬜⬜⬜ |
 | 15 | Interview Favorites | 7 | 0 | ⬜⬜⬜⬜⬜⬜⬜ |
 | 🔥 | Advanced Topics | 10 | 0 | ⬜⬜⬜⬜⬜⬜⬜⬜⬜⬜ |
-| | **Total** | **108** | **25** | **23.1%** |
+| | **Total** | **108** | **26** | **24.1%** |
 
 ---
 
@@ -623,6 +625,34 @@ Matching engine workflow orchestrated on AWS, pulling orders from Amazon MSK and
 ![Food Delivery AWS Rider Matching](./level_4_ride_sharing_delivery/food_delivery/food_delivery_rider_matching_v3.png)
 
 ---
+
+### Level 6 – Streaming
+
+#### 6.2 Live Streaming System Design
+A production-grade, highly available, low-latency Live Streaming Platform architecture supporting millions of concurrent viewers, sub-2s glass-to-glass latency, real-time Adaptive Bitrate (ABR) transcoding, global CDN distribution, and ultra-fast WebSocket live chat fanout.
+
+* **Documentation:** [Live Streaming System Design (live_streaming_system_design.md)](./level_6_streaming/live_streaming/live_streaming_system_design.md)
+* **OpenAPI 3.0 API Spec:** [OpenAPI Contract (live_streaming_api_spec.yaml)](./level_6_streaming/live_streaming/live_streaming_api_spec.yaml)
+* **Local Mock API Server:** [Mock Python Server (mock_server.py)](./level_6_streaming/live_streaming/mock_server.py) (run using `python3 level_6_streaming/live_streaming/mock_server.py`)
+
+#### Live Streaming Tech Stack Details (with AWS Service Mapping)
+* **AWS Elemental MediaLive / GPU Transcoder:** Performs real-time hardware encoding of raw incoming video (RTMP/SRT/WHIP) into 1080p60 to 360p30 ABR renditions with 2.0s GOP structures.
+* **AWS Elemental MediaPackage / Packager:** Assembles transcoded video frames into LL-HLS fMP4 250ms partial segments (`.m4s`) and dynamic `.m3u8` playlists.
+* **Amazon CloudFront & Origin Shield:** 450+ edge POPs delivering sub-2s LL-HLS streams via HTTP/2 & HTTP/3 server push with 98.5% CDN cache hit ratio.
+* **Amazon ElastiCache for Redis:** In-memory Pub/Sub message broker powering sub-50ms live chat fanout and stream health metrics telemetry.
+* **Amazon MSK (Apache Kafka) & Aurora PostgreSQL:** Kafka event logging pipeline asynchronously writing chat history and analytics to Aurora PostgreSQL and S3 VOD archives.
+
+#### Live Streaming Architecture Diagrams
+
+##### A. High-Level System Architecture
+End-to-end architecture tracing broadcaster RTMP ingestion, GPU transcoder farm, LL-HLS packager, Origin Shield, CloudFront CDN edge delivery, and WebSocket live chat fanout.
+
+![Live Streaming System Architecture](./level_6_streaming/live_streaming/live_streaming_system_architecture.png)
+
+##### B. AWS Cloud-Native System Architecture
+Cloud-native deployment mapping media processing to AWS Elemental MediaLive & MediaPackage, distribution to CloudFront CDN, chat to WebSocket API Gateway + ElastiCache Redis, and storage to S3 & Aurora.
+
+![Live Streaming AWS Architecture](./level_6_streaming/live_streaming/live_streaming_aws_architecture.png)
 
 ---
 
